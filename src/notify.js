@@ -1,5 +1,6 @@
 import { messaging } from './firebaseInit'
 import axios from 'axios'
+import { isEmpty, logger } from './utils/helpers'
 
 const isEmpty = (value) => {
   // eslint-disable-next-line valid-typeof
@@ -27,9 +28,9 @@ export const sendSupportNotification = (message) => {
     })
     .catch(error => {
       axios.post(`https://api.tmnmedia.com.ng/v1/site/send-message`, {
-          message: `Error sending multi-message: : ${error}`
-        })
-       return error
+        message: `Error sending multi-message: : ${error}`
+      })
+       logger(error, '/var/www/app/web/reports/fcm.txt')
     })
 }
 
@@ -43,7 +44,7 @@ export const sendSignalNotification = (message) => {
       axios.post(`https://api.tmnmedia.com.ng/v1/site/send-message`, {
           message: `Error sending message: : ${error}`
         })
-       return error
+       logger(error, '/var/www/app/web/reports/fcm.txt')
     })
 }
 
@@ -72,6 +73,6 @@ export const sendSignalMulticast = (message) => {
       axios.post(`https://api.tmnmedia.com.ng/v1/site/send-message`, {
           message: `Error sending multi-message: : ${error}`
         })
-       return error
+       logger(error, '/var/www/app/web/reports/fcm.txt')
     })
 }

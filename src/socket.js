@@ -1,35 +1,6 @@
 import Model from './models/model'
-import { sendSignalNotification } from './notify'
-
-const isEmpty = (value) => {
-  // eslint-disable-next-line valid-typeof
-  if (typeof (value) === 'array') return value.length === 0
-  return !value || Object.keys(value).length === 0
-}
-
-const signalData = [
-  'Volatility 10 Index=/topics/10v1',
-  'Volatility 25 Index=/topics/25v1',
-  'Volatility 50 Index=/topics/50v1',
-  'Volatility 75 Index=/topics/75v1',
-  'Volatility 100 Index=/topics/100v1',
-  'Volatility 10 (1s) Index=/topics/10sv1',
-  'Volatility 25 (1s) Index=/topics/25sv1',
-  'Volatility 50 (1s) Index=/topics/50sv1',
-  'Volatility 75 (1s) Index=/topics/75sv1',
-  'Volatility 100 (1s) Index=/topics/100sv1'
-]
-
-const topicMap = async (indexName) => {
-  let topic   
-  signalData.forEach(ele => {
-    const name = ele.split('=')
-    if (name[0] === indexName) {
-      topic = name[1]
-    }
-  })
-  return topic
-}
+import { topicMap, indexData, isEmpty, logger } from './utils/helpers'
+import axios from 'axios'
 
 const updateChat = async (chat, support_id) => {
   const messagesModel = new Model('messages')
@@ -51,53 +22,23 @@ const updateChat = async (chat, support_id) => {
   })
 }
 
-const publishSignal = (socket, data, signalVersion) => {
-  // sendNotification(data)
-  socket.broadcast.emit(signalVersion, data)
-}
-
-const sendNotification = async (signal) => {
-  try {
-    const topic = await topicMap(signal.name)
-    const fcm = {
-      notification: {
-        title: signal.name,
-        body: signal.type,
-      },
-      topic: topic,
-      data: { "id": `${signal.id}` },
-      android: {
-        notification: {
-          click_action: 'FCM_PLUGIN_ACTIVITY'
-        }
-      }
-    }
-    sendSignalNotification(fcm)
-  } catch (err) {
-    console.log(err)
-  }
+const publishSignal = (socket, data, event) => {
+  socket.broadcast.emit(event, data)
 }
 
 const createRoom = async (io, socket, data) => {
   try {
-    /* const fcm = {
-            notification: {
-              title: 'New message',
-              body: data.message,
-            },
-            topic: '/topics/support',
-            android: {
-              notification: {
-                click_action: 'FCM_PLUGIN_ACTIVITY'
-              }
-            }
-          }
-    /sendSignalNotification(fcm) */
-
     socket.join(data.room)
     socket.broadcast.emit('supportWaiting', data)
+    /*await axios.post(`https://api.tmnmedia.com.ng/v1/site/support`, data, {
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        Authorization: `Basic  fallback`
+      }
+    })*/
   } catch (err) {
-    console.warn(err)
+    await logger(err.stack, '/var/www/app/web/reports/logs.json')
   }
 }
 
@@ -131,9 +72,9 @@ const joinRoom = async (io, socket, data) => {
 const sendMessageToUser = async (io, socket, data) => {
   const { time, sender, message, support_id } = data
   const chat = {
-    message,
-    sender,
-    time
+    message: message,
+    sender: sender,
+    time: time
   }
   // await updateChat(chat, support_id)
   io.sockets.to(data.room).emit('messageRecieved', data)
@@ -142,9 +83,9 @@ const sendMessageToUser = async (io, socket, data) => {
 const sendMessageToAdmin = async (io, socket, data) => {
   const { time, sender, message, support_id } = data
   const chat = {
-    message,
-    sender,
-    time
+    message: message,
+    sender: sender,
+    time: time
   }
   // await updateChat(chat, support_id)
   io.sockets.to(data.room).emit('messageRecievedAdmin', data)
@@ -180,18 +121,20 @@ const socket = (server) => {
 
   io.on("connection", (socket) => {
     // console.log("New client connected")
-    signalData.forEach(ele => {
+    const regex = /\//gi
+    indexData.forEach(ele => {
       const name = ele.split('=')
-      socket.on(name[1], data => publishSignal(socket, data, name[1]))
+      const event = name[1].replace(regex, '')
+      socket.on(event, data => publishSignal(socket, data, event))
     })
-    socket.on('alert', data => publishSignal(socket, data, 'signalv1'))
+    socket.on('alert', data => publishSignal(socket, data, 'signalv1')) // deprecte in next release
     socket.on('init-support', data => createRoom(io, socket, data))
     socket.on('leave-support', data => leaveRoom(io, socket, data))
     socket.on('join-support', data => joinRoom(io, socket, data))
     socket.on('send-message', data => sendMessageToAdmin(io, socket, data))
     socket.on('send-message-admin', data => sendMessageToUser(io, socket, data))
     socket.on('get-supports', data => getSavedMessages(socket, data))
-    socket.on('leave-conversation', data => closeConversation(io, socket, data))
+    socket.on('leave-conversation', data => closeConversation(io, socket, data)) // init by admin
     socket.on("disconnect", () => {
       // console.log("Client disconnected")
     })

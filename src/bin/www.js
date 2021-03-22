@@ -36,7 +36,7 @@ const normalizePort = val => {
 /**
  * Get port from environment and store in Express.
  */
-const port = normalizePort(process.env.PORT || '2020')
+const port = normalizePort(process.env.PORT || '2021')
 app.set('port', port)
 /**
  * Create HTTP server.

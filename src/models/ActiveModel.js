@@ -1,9 +1,9 @@
 import { pool } from './pool'
 
 class Model {
-  constructor(table) {
-    this.pool = pool
-    this.table = `tmt03_${table}`
+  constructor(options) {
+    this.pool = options.pool
+    this.table = `tmt03_${options.table}`
     this.pool.on(
       'error',
       (err) => `Error, ${err.code}, was fatal? ${err.fatal}`
@@ -49,6 +49,11 @@ class Model {
       }
       this.result = results
     })
+  }
+
+  async end() {
+    this.pool.end()
+    return
   }
 
 }

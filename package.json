@@ -1,14 +1,14 @@
 {
   "name": "tmnmedia",
-  "version": "0.1.5",
-  "description": "Tmn Media FX",
+  "version": "1.0.0",
+  "description": "Tmn Media",
   "main": "index.js",
   "author": "samuel Onyijne",
   "license": "MIT",
   "private": true,
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nohup babel-node ./src/bin/www.js > /var/www/app/web/reports/console.txt 2> /var/www/app/web/reports/console-error.txt &",
+    "start": "nohup babel-node ./src/bin/www.js > /var/www/app/web/reports/console-new.txt 2> /var/www/app/web/reports/console-error-new.txt &",
     "start:dev": "nodemon --exec babel-node ./src/bin/www.js",
     "runQuery": "babel-node ./src/utils/runQuery"
   },
@@ -16,6 +16,7 @@
     "axios": "^0.20.0",
     "bcryptjs": "^2.4.3",
     "body-parser": "^1.19.0",
+    "bufferutil": "^4.0.2",
     "cookie-parser": "^1.4.5",
     "cors": "^2.8.5",
     "debug": "~4.2.0",
@@ -24,10 +25,16 @@
     "firebase-admin": "^9.2.0",
     "helmet": "^4.1.1",
     "http-errors": "~1.8.0",
+    "isomorphic-ws": "^4.0.1",
+    "json-stringify-safe": "^5.0.1",
     "jsonwebtoken": "^8.5.1",
+    "locutus": "^2.0.14",
     "morgan": "~1.10.0",
     "mysql": "^2.18.1",
-    "socket.io": "~2.3.0"
+    "socket.io": "~2.3.0",
+    "socket.io-emitter": "^3.1.1",
+    "utf-8-validate": "^5.0.3",
+    "ws": "^7.4.1"
   },
   "devDependencies": {
     "@babel/cli": "^7.12.1",

@@ -25,9 +25,9 @@ app.use(bodyParser.json())
 app.use(bodyParser.raw())
 app.use(logger('dev'))
 app.use(cookieParser())
+
 app.use('/v1/support', supportRouter)
 app.use('/v1/signal', signalRouter)
-
 
 // process all responses to add ed25519
 app.use(function(req, res, next) {
