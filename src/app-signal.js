@@ -2,15 +2,11 @@ import cors from 'cors'
 import logger from 'morgan'
 import express from 'express'
 import helmet from "helmet"
-
 // var cookie = require('cookie')
 import bodyParser from 'body-parser'
 import cookieParser from 'cookie-parser'
 import supportRouter from './routes/index'
 import signalRouter from './routes/signal'
-import tradeRouter from './routes/trade'
-import robotRouter from './routes/robot'
-import Telegram from './telegram'
 
 const app = express();
 
@@ -30,15 +26,9 @@ app.use(bodyParser.raw())
 app.use(logger('dev'))
 app.use(cookieParser())
 
-//const tele = new Telegram()
-// Set the bot API endpoint
-//app.use(tele.bot.webhookCallback(tele.secretPath))
-
-app.use('/v2/robot', robotRouter)
-
-//app.use('/v2/signal', signalRouter)
-app.use('/v2/trade', tradeRouter)
-//app.use('/v2/support', supportRouter)
+app.use('/v1/support', supportRouter)
+app.use('/v1/signal', signalRouter)
+app.use('/v2/signal', signalRouter)
 
 // process all responses to add ed25519
 app.use(function(req, res, next) {

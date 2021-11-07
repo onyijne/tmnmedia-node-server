@@ -3,18 +3,20 @@
  * Module dependencies.
  */
 // const debug = require('debug')('quick-credit:server')
-const fs = require('fs')
+// const fs = require('fs')
 // import debug from 'debug'
 import http from 'http'
-import https from 'https'
-import app from '../app'
+import app from '../app-signal'
 import socket from '../socket'
-import { upgrade } from '../websocket'
 
- const sslOptions = {
-  key: fs.readFileSync('/etc/letsencrypt/live/robot.tmnmedia.com.ng/privkey.pem'),
-  cert: fs.readFileSync('/etc/letsencrypt/live/robot.tmnmedia.com.ng/fullchain.pem')
-}
+
+ /* const sslOptions = {
+  key: fs.readFileSync('/etc/letsencrypt/live/tmnmedia.com.ng/privkey.pem'),
+  cert: fs.readFileSync('/etc/letsencrypt/live/tmnmedia.com.ng/fullchain.pem'),
+  dhparam: fs.readFileSync("/var/www/socket/dh.pem"),
+  requestCert: true,
+  rejectUnauthorized: false
+} */
 /**
  * Normalize a port into a number, string, or false.
  */
@@ -34,16 +36,14 @@ const normalizePort = val => {
 /**
  * Get port from environment and store in Express.
  */
-const port = normalizePort(process.env.PORT || '2022')
+const port = normalizePort(process.env.SIGNAL_PORT || '2021')
 app.set('port', port)
 /**
  * Create HTTP server.
  */
 const server = http.createServer(app)
-//const serverHttps = https.createServer(app)
 
 socket(server)
-//upgrade(server)
 
 /**
  * Event listener for HTTP server "error" event.

@@ -77,12 +77,12 @@ export function call_user_func(cb, parameters) {
     return func.apply(null, Array.prototype.slice.call(parameters, 1));
 }
 
-export async function logger (data, file = '/var/www/app/web/reports/robot.txt') {
+export async function logger (data, file = '/var/www/robot/web/reports/server/robot.txt') {
   let send = data
   if (typeof(data) == 'object') {
     send = stringify(send)
   }
-    fs.appendFile(file, `\n${send},`, function (err) {
+    fs.appendFile(file, `,\n${send}`, function (err) {
      // if (err) throw err;
     })
   }

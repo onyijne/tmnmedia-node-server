@@ -1,0 +1,19 @@
+{
+    "include": [
+      "./src/**/*"
+    ],
+    "compilerOptions": {
+      "module": "es2015",
+      "moduleResolution": "node",
+      "target": "es5",
+      "baseUrl": ".",
+        "paths": {
+            "utils/*": [
+                "src/utils/*"
+            ],
+            "store/*": [
+                "src/store/*"
+            ]
+        }
+    }
+}

@@ -8,8 +8,8 @@ export const modifyMessage = (req, res, next) => {
   next();
 };
 
-export const robotData = (req, res, next) => {
-  req.body.settings.today = 1608124132
+export const authBot = (req, res, next) => {
+  req.body.settings = 1608124132
   next();
 };
 

@@ -1,78 +1,31 @@
 import fs from 'fs'
 import { sendSignalMulticast } from '../notify'
-import Trader from '../trader'
 import { messaging } from '../firebaseInit'
 import { isEmpty, logger } from '../utils/helpers'
 
-fs.writeFile('/var/www/app/web/reports/robot.txt', `${new Date()}: Server Started!`, function (err) {
-  // if (err) throw err;
-})
-
-fs.writeFile('/var/www/app/web/reports/logs.json', JSON.stringify({ 'drill': 'started' }), function (err) {
-  // if (err) throw err;
-})
-
-fs.writeFile('/var/www/app/web/reports/results.json', JSON.stringify({ 'drill': 'started' }), function (err) {
-  // if (err) throw err;
-})
-
-
-var DerivClient = new Trader()
-
-export const robotRevoke = async (req, res) => {
-  const { token, app_id } = req.body
-  try {
-    if (!token) {
-      return res.status(200).json({ response: 'null' })
-    }
-    await DerivClient.initRevoke(token)
-    res.status(200).json({ status: 'done' })
-  } catch (err) {
-    await logger(err, '/var/www/app/web/reports/console-err-new.txt')
-    res.status(200).json({ message: err.stack })
-  }
-}
-
-export const robotTrade = async (req, res) => {
-  
-  try {
-    const { trade_options, today, settings, users } = req.body
-    for (let i = users.length - 1; i >= 0; i--) {
-      try {
-        await DerivClient.initTrade(trade_options, users[i],  settings, today)
-      } catch(err) {
-        await logger(err)
-      }
-    }
-    res.status(200).json({ response: 'done' })
-  } catch (err) {
-    await logger(err, '/var/www/app/web/reports/console-err-new.txt')
-    res.status(200).json({ message: err.stack })
-  }
-}
-
-export const clearTrades = async (req, res) => {
-  const { task } = req.body
-  try {
-    if (task === 'routine') {
-      await DerivClient.resetRobots()
-    }    
-    res.status(200).json({ response: 'done' });
-  } catch (err) {
-    await logger(err, '/var/www/app/web/reports/console-err-new.txt')
-    res.status(200).json({ message: err.stack })
-  }
-}
+/*fs.writeFile('/var/www/robot/web/reports/server/signal.txt', 'ok', function (err) {
+      // if (err) throw err;
+    })*/
 
 export const sendNotification = async (req, res) => {
   const { message } = req.body
   try {
+    let response = ''
     if (!isEmpty(message.tokens)) {
-      sendSignalMulticast(message)
+      response = sendSignalMulticast(message)
     }
-    res.status(200).json({ response: 'done' })
+    res.status(200).json({ response: response })
   } catch (err) {
-    await logger(err, '/var/www/app/web/reports/console-err-new.txt')
+    logger(`${new Date()}: ${err.stack}`, '/var/www/robot/web/reports/server/signal.txt')
+    res.status(200).json({ message: err.stack })
+  }
+}
+
+export const testApp = (req, res) => {
+  try {
+    res.status(200).json({ status: 'online' })
+  } catch (err) {
+    logger(`${new Date()}: ${err.stack}`, '/var/www/robot/web/reports/server/test.txt')
     res.status(200).json({ message: err.stack })
   }
 }

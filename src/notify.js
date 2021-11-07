@@ -2,12 +2,6 @@ import { messaging } from './firebaseInit'
 import axios from 'axios'
 import { isEmpty, logger } from './utils/helpers'
 
-const isEmpty = (value) => {
-  // eslint-disable-next-line valid-typeof
-  if (typeof (value) === 'array') return value.length === 0
-  return !value || Object.keys(value).length === 0
-}
-
 export const sendSupportNotification = (message) => {
   // Send a message to the device corresponding to the provided
   // registration token.
@@ -16,21 +10,17 @@ export const sendSupportNotification = (message) => {
     .then(response => {
       // console.log(`Notifications sent: ${successes} successful, ${failures} failed`)
       // Response is an object of the form { responses: [] }
-      /* const successes = response.responses.filter(r => r.success === true)
+      const successes = response.responses.filter(r => r.success === true)
         .length
       const failures = response.responses.filter(r => r.success === false)
         .length
-
-       axios.post(`https://api.tmnmedia.com.ng/v1/site/send-message`, {
-          message: `Notifications sent: ${successes} successful, ${failures} failed`
-        }) */
-       return response
+       return `Notifications sent: ${successes} successful, ${failures} failed`
     })
     .catch(error => {
-      axios.post(`https://api.tmnmedia.com.ng/v1/site/send-message`, {
+      axios.post(`https://api.tmnmedia.com.ng/api2/v2/site/send-message`, {
         message: `Error sending multi-message: : ${error}`
       })
-       logger(error, '/var/www/app/web/reports/fcm.txt')
+       logger(error, '/var/www/robot/web/reports/server/fcm.txt')
     })
 }
 
@@ -41,10 +31,10 @@ export const sendSignalNotification = (message) => {
        return response
     })
     .catch( error => {
-      axios.post(`https://api.tmnmedia.com.ng/v1/site/send-message`, {
+      axios.post(`https://api.tmnmedia.com.ng/api2/v2/site/send-message`, {
           message: `Error sending message: : ${error}`
         })
-       logger(error, '/var/www/app/web/reports/fcm.txt')
+       logger(error, '/var/www/robot/web/reports/server/fcm.txt')
     })
 }
 
@@ -59,20 +49,16 @@ export const sendSignalMulticast = (message) => {
     .then(response => {
       // console.log(`Notifications sent: ${successes} successful, ${failures} failed`)
       // Response is an object of the form { responses: [] }
-      /* const successes = response.responses.filter(r => r.success === true)
+      const successes = response.responses.filter(r => r.success === true)
         .length
       const failures = response.responses.filter(r => r.success === false)
         .length
-
-       axios.post(`https://api.tmnmedia.com.ng/v1/site/send-message`, {
-          message: `Notifications sent: ${successes} successful, ${failures} failed`
-        }) */
-       return response
+       return `Notifications sent: ${successes} successful, ${failures} failed`
     })
     .catch(error => {
-      axios.post(`https://api.tmnmedia.com.ng/v1/site/send-message`, {
+      axios.post(`https://api.tmnmedia.com.ng/api2/v2/site/send-message`, {
           message: `Error sending multi-message: : ${error}`
         })
-       logger(error, '/var/www/app/web/reports/fcm.txt')
+       logger(error, '/var/www/robot/web/reports/server/fcm.txt')
     })
 }

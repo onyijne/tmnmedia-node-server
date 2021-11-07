@@ -1,7 +1,6 @@
 /node_modules
-/google-services.json
-/account.json
-/service-account.json
+service-account.json
+service-account-new.json
 
 # local env files
 .env.local

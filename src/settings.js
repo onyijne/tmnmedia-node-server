@@ -8,7 +8,7 @@ export const connectionConfig = {
   host            : 'tmnmedia.com.ng',
   user            : 'node',
   password        : 'SqlForTmnmedia2020',
-  database        : 'signal_app'
+  database        : 'signal_test'
 }
 export const connectionConfigDev = {
   connectionLimit : 100,

@@ -6,10 +6,8 @@
 const fs = require('fs')
 // import debug from 'debug'
 import http from 'http'
-import https from 'https'
-import app from '../app'
+import app from '../app-trade'
 import socket from '../socket'
-import { upgrade } from '../websocket'
 
  const sslOptions = {
   key: fs.readFileSync('/etc/letsencrypt/live/robot.tmnmedia.com.ng/privkey.pem'),
