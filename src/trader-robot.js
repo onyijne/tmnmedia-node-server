@@ -1,16 +1,16 @@
 import WebSocket from 'isomorphic-ws'
 import axios from 'axios'
 var bc = require('locutus/php/bc')
-import Store from './store/trade'
+import Store from './store/trader'
 import { isEmpty, logger } from './utils/helpers'
 
 class TraderRobot {
   constructor(param) {
     this.store = Store
     this.connected = false
-    this.app_id = param.app_id || this.store.getters.appId
+    this.app_id = param.app_id || 3004
     this.ws = ''
-    this.api_url = `${this.store.getters.traderApiUrl}/trader`
+    this.api_url = this.store.getters.traderApiUrl
     this.today = param.today || Date.now()
     this.next = null
     this.user = param.user || {}
@@ -25,6 +25,22 @@ class TraderRobot {
     this.copytrading_statistics = {}
     this.streamData = {}
     this.tickSpotData = {}
+    this.digits = {
+      predictionTwo: "",
+      predictionTwoAppears: 0,
+      predictionDigit: "",
+      predictionDigitAppears: 0,
+      predictionThree: "",
+      predictionThreeAppears: 0,
+      predictionType: "",
+      tradeOptions: {},
+      mainAmount: 0,
+      id: 0,
+      subscribe_id: null,
+      tickText: "Start Tick",
+      tickSpotData: { quote: 0, pip_size: 0 }
+    };
+    this.status = "run";
     /*if (param.user) {
       this.req_id = `${this.user.id}${Date.now()}`
     } else {
@@ -44,6 +60,7 @@ class TraderRobot {
       this.debugFile = '/var/www/robot/web/reports/server/debug.txt'
     }
     this.cancelRetry = 0
+    this.retry = 0
     this.trading = false
     this.seconds_to_cancel = 0
     this.threshold = 0
@@ -51,6 +68,7 @@ class TraderRobot {
     if (this.user.deriv_token === '' || this.user.deriv_token === undefined) {
       return
     }
+    this.amount = 0
     this.skipped = 0
     this.init()
   }
@@ -73,8 +91,8 @@ class TraderRobot {
     return this
   }
 
-  async setup(trade_options, user,  settings, today) {
-    if(this.trading == true) {
+  async setup(trade_options, user, settings, today) {
+    if (this.trading == true) {
       return this
     }
     this.app_id = settings.app_id || this.store.getters.appId
@@ -86,7 +104,7 @@ class TraderRobot {
     return await this.connect()
   }
 
-  async setupCopy(copy_options, user,  settings) {
+  async setupCopy(copy_options, user, settings) {
     this.app_id = settings.app_id
     this.user = user
     this.settings = settings
@@ -99,27 +117,38 @@ class TraderRobot {
       let timeoutId = null
       //this.timeoutId = null
       const rob = this
-      rob.ws = new WebSocket(`wss://ws.binaryws.com/websockets/v3?app_id=${this.app_id}`)
+      rob.ws = new WebSocket(
+        `wss://ws.binaryws.com/websockets/v3?app_id=${this.app_id}`
+      )
       //const arr = []
-     // arr.push(rob)
+      // arr.push(rob)
       rob.ws.onopen = async function open() {
         rob.connected = true
         rob.trading = false
+        rob.status = 'run'
         rob.store.commit(rob.savePath, rob)
-        const id = (rob.user) ? rob.user.email : 0
-        await logger(`${new Date()}: (${rob.task}) Deriv connection started for ${id}.`, rob.logFileTxt)
+        const id = rob.user ? rob.user.email : 0
+        await logger(
+          `${new Date()}: (${rob.task}) Deriv connection started for ${id}.`,
+          rob.logFileTxt
+        )
         timeoutId = setInterval(rob.keepAlive, 20000, rob)
       }
       rob.ws.onclose = async function close() {
         rob.connected = false
-         rob.trading = false
-         //rob.threshold = 0
-         rob.task = 'idle'
-         rob.checking_profit = false
-         rob.store.commit(rob.savePath, rob)
-         const id = (rob.user) ? rob.user.email : 0
-        if (timeoutId) { clearInterval(timeoutId) }
-        await logger(`${new Date()}: (${rob.task}) Deriv connection closed for ${id}.`, rob.logFileTxt)
+        rob.trading = false
+        //rob.threshold = 0
+        rob.task = 'idle'
+        rob.checking_profit = false
+        rob.store.commit(rob.savePath, rob)
+        const id = rob.user ? rob.user.email : 0
+        if (timeoutId) {
+          clearInterval(timeoutId)
+        }
+        await logger(
+          `${new Date()}: (${rob.task}) Deriv connection closed for ${id}.`,
+          rob.logFileTxt
+        )
       }
       rob.ws.onmessage = async function incoming(message) {
         try {
@@ -127,17 +156,19 @@ class TraderRobot {
           if (data.hasOwnProperty('error')) {
             rob.trading = false
             rob.store.commit(rob.savePath, rob)
-            const id = (rob.user) ? rob.user.email : 0
-            const msg = `${new Date()}: ${data.msg_type} -> ${data.error.code}: ${data.error.message} for ${id}`
+            const id = rob.user ? rob.user.email : 0
+            const msg = `${new Date()}: ${data.msg_type} -> ${
+              data.error.code
+            }: ${data.error.message} for ${id}`
             await rob.sendMail(msg)
             logger(msg, rob.logFileTxt)
             //if (timeoutId) { clearInterval(timeoutId) }
             return
           }
           if (!['ping', 'api_token'].includes(data.msg_type)) {
-            await rob.recieveReply(data) 
+            await rob.recieveReply(data)
           }
-        } catch(error) {
+        } catch (error) {
           logger(error.message, rob.logFileTxt)
         }
       }
@@ -145,7 +176,7 @@ class TraderRobot {
       this.connected = rob.connected
       this.trading = rob.trading
       //this.timeoutId = rob.timeoutId
-    } catch(err) {
+    } catch (err) {
       await logger(err.message, this.logFileTxt)
     }
   }
@@ -161,17 +192,18 @@ class TraderRobot {
   async setData(data) {
     const rob = this
     let passData = {
-      passthrough:  data.passthrough
+      passthrough: data.passthrough,
       //req_id: this.req_id
     }
     const trade_options = rob.trade_options
-    switch(data.passthrough.next) {
+    switch (data.passthrough.next) {
       case 'profit_table':
         passData.profit_table = 1
         passData.description = 0
         passData.date_from = rob.today
-        passData.passthrough.next = (rob.checking_profit === false) ? 'buy' : 'end'
-        break;
+        passData.passthrough.next =
+          rob.checking_profit === false ? 'buy' : 'end'
+        break
       case 'buy':
         delete trade_options.trade_option
         delete trade_options.seconds_to_cancel
@@ -184,22 +216,24 @@ class TraderRobot {
         passData.price = trade_options.amount
         passData.parameters = trade_options
         passData.passthrough.next = 'portfolio'
-        break;
+        break
       case 'portfolio':
         passData.portfolio = 1
         passData.contract_type = [trade_options.contract_type]
         passData.passthrough.next = 'sell'
-        break;
+        break
       case 'sell':
-        passData.sell = (data.portfolio.contracts[0]) ? data.portfolio.contracts[0].contract_id : ''
+        passData.sell = data.portfolio.contracts[0]
+          ? data.portfolio.contracts[0].contract_id
+          : ''
         passData.price = 0
         passData.passthrough.next = 'ilde'
-        break;
+        break
       case 'api_token':
         passData.api_token = 1
         passData.delete_token = rob.user.deriv_token
         passData.passthrough.next = 'idle'
-        break;
+        break
       case 'ticks':
         passData.ticks = data.passthrough.ticks
         passData.subscribe = 1
@@ -211,20 +245,20 @@ class TraderRobot {
         passData.max_trade_stake = rob.copy_options.max_stake
         passData.min_trade_stake = rob.copy_options.min_stake
         passData.passthrough.next = 'end'
-        break;
+        break
       case 'copy_stop':
         passData.copy_stop = rob.settings.copy_start
         passData.passthrough.next = 'end'
-        break;
+        break
       case 'copytrading_statistics':
         passData.copytrading_statistics = 1
         passData.trader_id = rob.settings.deriv_account_id
         passData.passthrough.next = 'end'
-        break;
+        break
       case 'copytrading_list':
         passData.copytrading_list = 1
         passData.passthrough.next = 'end'
-        break;
+        break
       default:
         ''
     }
@@ -243,40 +277,54 @@ class TraderRobot {
         pl: 0,
         percent: 0,
         pmax: parseFloat(data.passthrough.pmax),
-        lmax: parseFloat(data.passthrough.lmax)
+        lmax: parseFloat(data.passthrough.lmax),
       }
       for (const transaction of data.profit_table.transactions) {
         if (transaction.purchase_time >= rob.today) {
-          counter.buy_price = bc.bcadd(transaction.buy_price, counter.buy_price, 2)
-          counter.sell_price = bc.bcadd(transaction.sell_price, counter.sell_price, 2)
+          counter.buy_price = bc.bcadd(
+            transaction.buy_price,
+            counter.buy_price,
+            2
+          )
+          counter.sell_price = bc.bcadd(
+            transaction.sell_price,
+            counter.sell_price,
+            2
+          )
         }
       }
-      counter.pl = parseFloat(bc.bcsub(counter.sell_price, counter.buy_price, 2))
+      counter.pl = parseFloat(
+        bc.bcsub(counter.sell_price, counter.buy_price, 2)
+      )
       const di = parseFloat(counter.pl / rob.trade_options.amount)
       const per = bc.bcmul(di, 100, 2)
       counter.percent = parseFloat(per.replace('-', ''))
       /*if (rob.user.email === rob.settings.test_email) {
         logger(counter, rob.logFileJson)
       }*/
-      if ( per >= counter.pmax && counter.pmax > 0) {
-        const msg = `${new Date()}: ${data.msg_type}  ${rob.user.email}: has reached ${counter.pmax}% profits`
+      if (per >= counter.pmax && counter.pmax > 0) {
+        const msg = `${new Date()}: ${data.msg_type}  ${
+          rob.user.email
+        }: has reached ${counter.pmax}% profits`
         rob.store.dispatch('threshold', {
           reached: per,
           reason: 'profit',
           token: rob.user.deriv_token,
           message: msg,
-          namespace: rob.settings.namespace
+          namespace: rob.settings.namespace,
         })
-        
+
         //logger(msg, rob.logFileTxt)
       } else if (counter.percent >= counter.lmax && counter.lmax > 0) {
-        const msg = `${new Date()}: ${data.msg_type} ${rob.user.email}: has reached ${counter.lmax}% losses.`
+        const msg = `${new Date()}: ${data.msg_type} ${
+          rob.user.email
+        }: has reached ${counter.lmax}% losses.`
         rob.store.dispatch('threshold', {
           reached: per,
           reason: 'loss',
           token: rob.user.deriv_token,
           message: msg,
-          namespace: rob.settings.namespace
+          namespace: rob.settings.namespace,
         })
         //logger(msg, rob.logFileTxt)
       } else {
@@ -284,10 +332,13 @@ class TraderRobot {
           rob.checking_profit = false
           rob.trading = false
           rob.store.commit(rob.savePath, rob)
-          return;
+          return
         }
-        if(rob.trading == true) {
-          await logger(`${new Date()}: (${rob.task}) trading currently on, skipping.`, rob.logFileTxt)
+        if (rob.trading == true) {
+          await logger(
+            `${new Date()}: (${rob.task}) trading currently on, skipping.`,
+            rob.logFileTxt
+          )
           return rob
         }
         rob.trading = true
@@ -296,134 +347,145 @@ class TraderRobot {
         await rob.send(rob.nData)
         // await logger(`${new Date()}: (${rob.task}) trade session ran for ${rob.user.email}`, rob.logFileTxt)
       }
-    } catch(err) {
+    } catch (err) {
       await logger(err.message, this.logFileTxt)
     }
   }
 
   async recieveReply(data) {
-      try{
-        const rob = this
-        let action = data.passthrough.next    
-        if (action == null || action == undefined) {
-         return
-        }
-        //let timeoutId = null
-        await rob.setData(data)
-        const authData = {
-          authorize: rob.user.deriv_token,
-          passthrough: {
-            next: null
-          }
-        }
-        
-        switch (data.msg_type) {
-          case 'authorize':
-            await rob.send(rob.nData)
-            break;
-          case 'profit_table':
-            await rob.profitLossPercent(data, authData)
-            break;
-          case 'buy':
-            await rob.afterTrade(data)
-            await rob.count(rob)
-            break;
-          case 'portfolio':
-            if (!isEmpty(data.portfolio.contracts)) {
-              //authData.passthrough.next = action
-              await rob.send(authData)
-              await rob.send(rob.nData)
-              rob.debug(rob, `${new Date()}: cancel request sent`)
-            }
-            break;
-          case 'sell':            
-            rob.trading = false
-            rob.store.commit(rob.savePath, rob)
-            rob.debug(rob, `${new Date()}: sold trade`)
-            if (rob.timeoutId) {
-              clearInterval(rob.timeoutId)
-            }
-            break;
-          case 'api_token':
-            await rob.close()
-            break;
-          case 'ticks':
-            await this.checkPrediction(data.tick)
-            break
-          case 'copy_start':
-            this.streamData = data.copy_start
-            break
-          case 'copy_stop':
-            this.streamData = data.copy_stop
-            break
-          case 'copytrading_list':
-            await this.copytradingList(data.copytrading_list)
-            break
-          case 'copy_statistics':
-            await this.statisticsData(data.copytrading_statistics)
-            break
-          default:
-            ''
-        }
-      } catch(err) {
-        await logger(err.message, this.logFileTxt)
+    try {
+      const rob = this
+      let action = data.passthrough.next
+      if (action == null || action == undefined) {
+        return
       }
+      //let timeoutId = null
+      await rob.setData(data)
+      const authData = {
+        authorize: rob.user.deriv_token,
+        passthrough: {
+          next: null,
+        },
+      }
+
+      switch (data.msg_type) {
+        case 'authorize':
+          await rob.send(rob.nData)
+          break
+        case 'profit_table':
+          await rob.profitLossPercent(data, authData)
+          break
+        case 'buy':
+          await rob.afterTrade(data)
+          await rob.count(rob)
+          break
+        case 'portfolio':
+          if (!isEmpty(data.portfolio.contracts)) {
+            //authData.passthrough.next = action
+            await rob.send(authData)
+            await rob.send(rob.nData)
+            rob.debug(rob, `${new Date()}: cancel request sent`)
+          }
+          break
+        case 'sell':
+          rob.trading = false
+          rob.store.commit(rob.savePath, rob)
+          rob.debug(rob, `${new Date()}: sold trade`)
+          if (rob.timeoutId) {
+            clearInterval(rob.timeoutId)
+          }
+          break
+        case 'api_token':
+          await rob.close()
+          break
+        case 'ticks':
+          await this.checkPrediction(data.tick)
+          break
+        case 'copy_start':
+          this.streamData = data.copy_start
+          break
+        case 'copy_stop':
+          this.streamData = data.copy_stop
+          break
+        case 'copytrading_list':
+          await this.copytradingList(data.copytrading_list)
+          break
+        case 'copy_statistics':
+          await this.statisticsData(data.copytrading_statistics)
+          break
+        default:
+          ''
+      }
+    } catch (err) {
+      await logger(err.message, this.logFileTxt)
+    }
   }
 
-  async checkPrediction (tickSpotData) {
+  async checkPrediction(tickSpotData) {
     this.tickSpotData = tickSpotData
-  }
-
-  async copytradingList (copytradingList) {
-    this.copytrading_list = copytradingList
-  }
-
-  async statisticsData (statisticsData) {
-    this.copytrading_statistics = statisticsData
   }
 
   async send(data) {
     try {
       if (isEmpty(data)) return
-      if (this.ws._readyState === undefined) {
+      if (this.retry >= 60) {
         this.trading = false
+        this.retry = 0
         this.store.commit(this.savePath, this)
-        const id = (this.user) ? this.user.email : 0
-        const msg = `${new Date()} (${this.task}): request not sent, deriv connection not found. ${id}`
-        await this.sendMail(msg)
-        logger(msg, this.logFileTxt)
         return
       }
-      if (this.ws._readyState === this.ws.OPEN) {
+      if (
+        this.ws._readyState !== undefined &&
+        this.ws._readyState === this.ws.OPEN
+      ) {
         this.ws.send(JSON.stringify(data))
-      } else {  
-        this.trading = false
-        this.store.commit(this.savePath, this)
-        const id = (this.user) ? this.user.email : 0
-        const msg = `${new Date()} (${this.task}): request not sent, deriv connection is off. ${id}` 
-        await this.sendMail(msg)
-        logger(msg, this.logFileTxt)
+        this.retry = 0
+      } else {
+        await this.connect()
+        if (Number(this.retry) === 0) {
+          let msg = ''
+          const id = this.user ? this.user.email : 0
+          if (this.ws._readyState === undefined) {
+            msg = `${new Date()} (${
+              this.task
+            }): request not sent, deriv connection not found. 
+            will retry for 2 minutes. ${id}`
+          } else {
+            const msg = `${new Date()} (${
+              this.task
+            }): request not sent, deriv connection is off.
+            will retry for 2 minutes. ${id}`
+          }
+          this.sendMail(msg)
+        }
+        this.retry += 1
+        const rob = this
+        setTimeout(() => {
+          rob.send(data)
+        }, 2000)
       }
-    } catch(err) {
+    } catch (err) {
       await logger(err.message, this.logFileTxt)
     }
     return
   }
 
   async sendMail(message) {
-    if (isEmpty(this.settings)) { return }
+    if (isEmpty(this.settings)) {
+      return
+    }
     if (this.user.email === this.settings.test_email) {
       return
     }
     axios.post(`${this.api_url}/robot/send-message`, {
       to: this.settings.email,
-      message: message
+      message: message,
     })
   }
 
-  async initTrade(trade_options, user,  settings, today) {
-    if(this.trading === true || this.threshold !== 0){
-      let reason = 'skipped ';
+  async initTrade(trade_options, user, settings, today) {
+    if (this.trading === true || this.threshold !== 0) {
+      let reason = 'skipped '
       this.skipped = this.skipped + 1
       if (this.trading === true) {
         if (this.skipped >= 1) {
@@ -431,7 +493,7 @@ class TraderRobot {
         }
         reason = `${reason} : trade ongoing`
       }
-      if (this.threshold !== 0) { 
+      if (this.threshold !== 0) {
         reason = `${reason} - ${this.threshold} threshold reached`
         if (this.today != today) {
           this.threshold = 0
@@ -442,7 +504,7 @@ class TraderRobot {
       this.debug(this, `${new Date()}: ${reason}`)
       return this
     }
-    const rob = await this.setup(trade_options, user,  settings, today)
+    const rob = await this.setup(trade_options, user, settings, today)
     rob.skipped = 0
     rob.checking_profit = false
     rob.task = 'authorize'
@@ -451,15 +513,15 @@ class TraderRobot {
     const data = {
       authorize: rob.user.deriv_token,
       passthrough: {
-       next: rob.next,
-       pmax: rob.settings.profit_max,
-       lmax: rob.settings.loss_max,
-       suc: rob.seconds_to_cancel
+        next: rob.next,
+        pmax: rob.settings.profit_max,
+        lmax: rob.settings.loss_max,
+        suc: rob.seconds_to_cancel,
       },
       //req_id: this.req_id
     }
     rob.store.commit(rob.savePath, rob)
-    await rob.send(data)    
+    await rob.send(data)
     return rob
   }
 
@@ -467,27 +529,31 @@ class TraderRobot {
     try {
       const rob = this
       if (rob.time_entered !== 0) {
-        const msg = `signal came at ${rob.time_entered} and traded at ${new Date()}`
+        const msg = `signal came at ${
+          rob.time_entered
+        } and traded at ${new Date()}`
         rob.sendMail(msg)
       }
       const ca = parseFloat(data.passthrough.suc - 2)
       //rob.seconds_to_cancel = ca
       const cancel = parseFloat(ca * 1000)
-  
+
       if (cancel === 'NaN' || cancel < 2000) {
-        const msg = `${new Date()}: (${rob.task}) trade not cancelled ${ca} seconds (${cancel} miliseconds)`
-         logger(msg, rob.logFileTxt)
-         rob.trading = false
-         rob.timeoutId = null
-         rob.store.commit(rob.savePath, rob)
-         rob.debug(rob, `${new Date()}: trade ended`)
-         return
+        const msg = `${new Date()}: (${
+          rob.task
+        }) trade not cancelled ${ca} seconds (${cancel} miliseconds)`
+        logger(msg, rob.logFileTxt)
+        rob.trading = false
+        rob.timeoutId = null
+        rob.store.commit(rob.savePath, rob)
+        rob.debug(rob, `${new Date()}: trade ended`)
+        return
       }
       //logger(`${new Date()}: (${rob.task}) trade will sell at market after ${ca} seconds (${cancel} miliseconds) for ${rob.user.id}`)
       setTimeout(rob.initCancel, cancel, rob)
       const log = `${new Date()}: trade sent - will sell at market after ${ca} seconds `
       rob.debug(rob, log)
-    } catch(err) {
+    } catch (err) {
       logger(err.message, this.logFileTxt)
     }
   }
@@ -496,21 +562,26 @@ class TraderRobot {
     try {
       rob.cancelRetry = 0
       rob.tried = 0
-     if (rob.timeoutId) { clearInterval(rob.timeoutId) }
+      if (rob.timeoutId) {
+        clearInterval(rob.timeoutId)
+      }
       rob.timeoutId = setInterval(rob.retryPortfolio, 2000, rob)
-    } catch(err) {
+    } catch (err) {
       logger(err.message, rob.logFileTxt)
     }
   }
 
   async retryPortfolio(rob) {
-     try {
-      if (rob.cancelRetry === 5) rob.sendMail(`first set of sell retry finished for ${rob.user.email}`)
+    try {
+      if (rob.cancelRetry === 5)
+        rob.sendMail(`first set of sell retry finished for ${rob.user.email}`)
       if (rob.cancelRetry > 5 && rob.cancelRetry < 10) return
       if (rob.cancelRetry > 15) {
         rob.trading = false
         //rob.timeoutId = null
-        if (rob.timeoutId) { clearInterval(rob.timeoutId) }
+        if (rob.timeoutId) {
+          clearInterval(rob.timeoutId)
+        }
         rob.store.commit(rob.savePath, rob)
         rob.debug(rob, `${new Date()}: trade ended`)
         return
@@ -518,16 +589,16 @@ class TraderRobot {
       const authData = {
         authorize: rob.user.deriv_token,
         passthrough: {
-          next: 'portfolio'
-        }
+          next: 'portfolio',
+        },
       }
       rob.cancelRetry = rob.cancelRetry + 1
       await rob.store.commit(rob.savePath, rob)
-      await rob.send(authData)      
-    } catch(err) {
+      await rob.send(authData)
+    } catch (err) {
       rob.trading = false
-        rob.timeoutId = null
-        rob.store.commit(rob.savePath, rob)
+      rob.timeoutId = null
+      rob.store.commit(rob.savePath, rob)
       await logger(err.message, rob.logFileTxt)
     }
   }
@@ -539,15 +610,15 @@ class TraderRobot {
     const data = {
       authorize: rob.user.deriv_token,
       passthrough: {
-       next: rob.next
-      }
-    }    
+        next: rob.next,
+      },
+    }
     await rob.store.commit(rob.savePath, rob)
     await rob.send(data)
     return
   }
 
-  async  keepAlive(rob) {
+  async keepAlive(rob) {
     await rob.ping()
   }
 
@@ -562,11 +633,11 @@ class TraderRobot {
     const data = {
       authorize: this.user.deriv_token,
       passthrough: {
-        next: 'api_token'
-      }
+        next: 'api_token',
+      },
     }
     await this.store.commit('this.savePath', this)
-    await this.send(data) 
+    await this.send(data)
     return
   }
 
@@ -575,9 +646,9 @@ class TraderRobot {
       if (rob.settings.action === 'auto') {
         rob.store.dispatch('tradeCount', {
           namespace: rob.settings.namespace,
-          email: rob.settings.threshold_email
+          email: rob.settings.threshold_email,
         })
-      }      
+      }
       setTimeout(rob.checkThreshold, 60000, rob)
     }
   }
@@ -587,67 +658,66 @@ class TraderRobot {
     if (rob.settings.debug === 1) logger(log, rob.debugFile)
   }
 
- async closeLater()
- {
-  const rob = this
-   setTimeout(this.close, 80000)
- }
-
- async startCopy() {
-    this.task = 'authorize'
-    this.next = 'copy_start'
-    const data = {
-      authorize: this.user.deriv_token,
-      passthrough: {
-        next: 'copy_start'
-      }
-    }
-    await this.store.commit('this.savePath', this)
-    await this.send(data) 
-    return
+  async closeLater() {
+    const rob = this
+    setTimeout(this.close, 80000)
   }
 
- async stopCopy() {
-    this.task = 'authorize'
-    this.next = 'copy_stop'
-    const data = {
-      authorize: this.user.deriv_token,
-      passthrough: {
-        next: this.next
-      }
+  async getDigitAmount() {
+    this.amount = this.digits.mainAmount;
+    if (Number(this.amount) === 0 || Number.isNaN(this.amount)) {
+      const staking_percent = bc.bcdiv(this.settings.staking_percent, 100, 2);
+      const tradeOptions = {
+        amount: Number(bc.bcmul(staking_percent, this.user.balance, 2))
+      };
+      //app_store.commit("updateDigitsData", { tradeOptions: tradeOptions });
+      this.digits.tradeOptions.amount = tradeOptions.amount;
+      this.amount = tradeOptions.amount;
     }
-
-    await this.store.commit(this.savePath, this)
-    await this.send(data) 
-    return
+    return this.amount;
   }
 
-  async copiers () {
-    this.task = 'authorize'
-    this.next = 'copytrading_list'
-    const data = {
-      authorize: this.user.deriv_token,
-      passthrough: {
-        next: this.next
-      }
+  async setupDigit(user, settings, form) {
+    this.today = settings.today;
+    this.user = user;
+    this.settings = settings;
+    this.digits.subscribe_id = null;
+    if (isEmpty(form)) {
+      return await this.connect();
     }
-    this.$store.commit(this.savePath, this);
-    await this.send(data)
+    const amount = form.amount === undefined ? 0 : form.amount;
+    this.digits.tradeOptions = {
+      contract_type: form.contract_type,
+      amount: amount,
+      basis: "stake",
+      currency: form.currency,
+      duration_unit: form.duration_unit,
+      duration: form.duration,
+      symbol: form.symbol,
+      barrier: Number(form.prediction)
+    };
+    this.digits.mainAmount = amount;
+    this.digits.id = form.id;
+    //this.getDigitAmount();
+    this.digits.predictionDigit = Number(form.pre_prediction_digit);
+    this.digits.predictionTwo = Number(form.pre_prediction_two);
+    this.digits.predictionThree = Number(form.pre_prediction_three);
+    if (form.pre_prediction_three !== undefined) {
+      this.digits.predictionType = "three";
+    } else if (
+      form.pre_prediction_two !== undefined &&
+      form.pre_prediction_three === undefined
+    ) {
+      this.digits.predictionType = "double";
+    } else {
+      this.digits.predictionType = "single";
+    }
+    await this.getDigitAmount();
+    return await this.connect();
   }
 
-  async copyStatistics () {
-    this.task = 'authorize'
-    this.next = 'copytrading_statistics'
-    const data = {
-      authorize: this.user.deriv_token,
-      passthrough: {
-        next: this.next
-      }
-    }
-    this.$store.commit(this.savePath, this);
-    await this.send(data)
-  }
+  async initDigit(user, settings, trade_options){}
 
 }
 
-export default TraderRobot;
+export default TraderRobot

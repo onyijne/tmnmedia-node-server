@@ -1,5 +1,5 @@
 import express from 'express'
-import { addAccount, sendTrade, testApp, handleEvents, websocket, listClients } from '../controllers/robot'
+import { testApp, handleEvents, websocket, listClients } from '../controllers/robot'
 import { authBot } from '../middleware'
 
 const robotRouter = express.Router()

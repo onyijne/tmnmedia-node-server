@@ -14,7 +14,9 @@
     "start:trade": "nohup babel-node ./src/bin/www_trade.js > /var/www/robot/web/reports/server/console-trade.txt 2> /var/www/robot/web/reports/server/console-error-trade.txt &",
     "start:signal": "nohup babel-node ./src/bin/www_signal.js > /var/www/robot/web/reports/server/console-signal.txt 2> /var/www/robot/web/reports/server/console-error-signal.txt &",
     "start:telegram": "nohup babel-node ./src/bin/www_telegram.js > /var/www/robot/web/reports/server/console-telegram.txt 2> /var/www/robot/web/reports/server/console-error-telegram.txt &",
-    "runQuery": "babel-node ./src/utils/runQuery"
+    "runQuery": "babel-node ./src/utils/runQuery",
+    "trader:dev": "nodemon --exec babel-node ./src/bin/www_trader.js",
+    "start:trader": "nohup babel-node ./src/bin/www_trader.js > /var/www/robot/web/reports/trader/console-trade.txt 2> /var/www/robot/web/reports/trader/console-error-trade.txt &"
   },
   "dependencies": {
     "axios": "^0.20.0",

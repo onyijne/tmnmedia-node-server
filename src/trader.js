@@ -39,22 +39,22 @@ class Trader {
     })
   }
 
-  async initTrade(trade_options, user,  settings, today) {
+  async initTrade(trade_options, user, settings, today) {
     await this.store.dispatch('trade', {
       trade_options: trade_options,
       user: user,
       settings: settings,
-      today: today
+      today: today,
     })
     return
   }
 
-  async initWake(trade_options, user,  settings, today) {
+  async initWake(trade_options, user, settings, today) {
     await this.store.dispatch('wake', {
       trade_options: trade_options,
       user: user,
       settings: settings,
-      today: today
+      today: today,
     })
     return
   }
@@ -62,7 +62,7 @@ class Trader {
   async initRevoke(deriv_token, settings) {
     await this.store.dispatch('revoke', {
       deriv_token: deriv_token,
-      settings: settings
+      settings: settings,
     })
     return
   }
@@ -75,7 +75,10 @@ class Trader {
 
   async resetTestRobots() {
     for (const token in this.store.getters.testRobots) {
-      await this.store.dispatch('threshold', { token: token, namespace: 'test' })
+      await this.store.dispatch('threshold', {
+        token: token,
+        namespace: 'test',
+      })
     }
   }
 
@@ -83,7 +86,7 @@ class Trader {
     await this.store.dispatch('copyStart', {
       copy_options: copy_options,
       user: user,
-      settings: settings
+      settings: settings,
     })
     return 'ok'
   }
@@ -91,7 +94,7 @@ class Trader {
   async endCopy(user, settings) {
     await this.store.dispatch('copyEnd', {
       user: user,
-      settings: settings
+      settings: settings,
     })
     return 'ok'
   }
@@ -99,7 +102,7 @@ class Trader {
   async copyStatistics(user, settings) {
     const res = await this.store.dispatch('copyStatistics', {
       user: user,
-      settings: settings
+      settings: settings,
     })
     return res
   }
@@ -107,39 +110,75 @@ class Trader {
   async copyList(user, settings) {
     const res = await this.store.dispatch('copyList', {
       user: user,
-      settings: settings
+      settings: settings,
     })
     return res
   }
 
-  async initTrader(trade_options, user,  settings, today) {
+  async initTrader(trade_options, user, settings, today) {
     await this.tstore.dispatch('trader/trader', {
       trade_options: trade_options,
       user: user,
       settings: settings,
-      today: today
+      today: today,
     })
     return
   }
 
-  async initTraderRevoke(deriv_token, settings) {
+  async initTraderRevoke(user, settings) {
     await this.tstore.dispatch('trader/traderRevoke', {
-      deriv_token: deriv_token,
-      settings: settings
+      user: user,
+      settings: settings,
     })
     return
   }
 
-  async resetTraderRobots() {
+  async resetTraderRobots(settings) {
+    for (const token in this.tstore.getters.signalRobots) {
+      await this.tstore.dispatch('trader/traderThreshold', {
+        deriv_account: token,
+        namespace: '',
+        type: 'signals',
+        settings: settings
+      })
+    }
     for (const token in this.tstore.getters.traderRobots) {
-      await this.tstore.dispatch('trader/traderThreshold', { token: token, namespace: '' })
+      await this.tstore.dispatch('trader/traderThreshold', {
+        deriv_account: token,
+        namespace: '',
+        type: 'digits',
+        settings: settings
+      })
     }
   }
 
-  async resetTraderTestRobots() {
-    for (const token in this.tstore.getters.traderTestRobots) {
-      await this.tstore.dispatch('trader/traderThreshold', { token: token, namespace: 'test' })
+  async resetTraderTestRobots(settings) {
+    for (const token in this.tstore.getters.testRobots) {
+      await this.tstore.dispatch('trader/traderThreshold', {
+        deriv_account: token,
+        namespace: 'test',
+        settings: settings
+      })
     }
+  }
+
+  async initTraderWaker(trade_options, user, settings, today) {
+    await this.store.dispatch('trader/traderWake', {
+      trade_options: trade_options,
+      user: user,
+      settings: settings,
+      today: today,
+    })
+    return
+  }
+
+  async initDigits(user, settings, trade_options) {
+    await this.store.dispatch('trader/digits', {
+      user: user,
+      settings: settings,
+      trade_options: trade_options
+    })
+    return
   }
 }
 

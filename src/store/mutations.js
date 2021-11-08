@@ -63,6 +63,55 @@ const mutations = {
 	},
 	resetTestRobots: (state, payload) => {
 		state.testRobots = payload
-	}
+	},
+	addTraderRobot: (state, robot) => {
+		try{
+			const robots = state.traderRobots
+			robots[robot.user.deriv_account] = robot
+			state.traderRobots = robots
+		} catch(err){
+			logger(err)
+		}
+	},
+	removeTraderRobot: (state, deriv_account) => {
+		try{
+			const robots = state.traderRobots
+			delete robots[deriv_account]
+			state.traderRobots = robots
+		} catch(err){
+			logger(err)
+		}
+	},
+	resetTraderRobots: (state, payload) => {
+		state.traderRobots = payload
+	},
+	addSignalRobot: (state, robot) => {
+		try{
+			const robots = state.signalRobots
+			robots[robot.user.deriv_account] = robot
+			state.signalRobots = robots
+		} catch(err){
+			logger(err)
+		}
+	},
+	removeSignalRobot: (state, deriv_account) => {
+		try{
+			const robots = state.signalRobots
+			delete robots[deriv_account]
+			state.signalRobots = robots
+		} catch(err){
+			logger(err)
+		}
+	},
+	resetSignalRobots: (state, payload) => {
+		state.signalRobots = payload
+	},
+	updateDigitsData(state, data) {
+		// state.streamDigitData = data.tickSpotData || state.streamDigitData
+		const robots = state.traderRobots
+			robots[robot.user.deriv_account] = robot
+		state.digits = { ...state.digits, ...data }
+		// Vue.set(state, "digits", { ...state.digits, ...data });
+	  }
 }
 export default mutations
