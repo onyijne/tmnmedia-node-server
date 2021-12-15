@@ -24,7 +24,7 @@ export const robotRevoke = async (req, res) => {
     res.status(200).json({ status: 'done' })
   } catch (err) {
     logger(`${new Date()}: ${err.stack}`, '/var/www/robot/web/reports/server/trade.txt')
-    res.status(200).json({ message: err.stack })
+    res.status(200).json({ message: err.message})
   }
 }
 
@@ -47,7 +47,7 @@ export const robotTrade = async (req, res) => {
     res.status(200).json({ response: 'done' })
   } catch (err) {
     logger(`${new Date()}: ${err.stack}`, '/var/www/robot/web/reports/server/trade.txt')
-    res.status(200).json({ message: err.stack })
+    res.status(200).json({ message: err.message})
   }
 }
 
@@ -62,7 +62,7 @@ export const clearTrades = async (req, res) => {
     return res.status(200).json({ status: 'success' })
   } catch (err) {
     logger(`${new Date()}: ${err.stack}`, '/var/www/robot/web/reports/server/trade.txt')
-    res.status(200).json({ message: err.stack })
+    res.status(200).json({ message: err.message})
   }
 }
 
@@ -80,7 +80,7 @@ export const robotWake = async (req, res) => {
     res.status(200).json({ response: 'done' })
   } catch (err) {
     logger(`${new Date()}: ${err.stack}`, '/var/www/robot/web/reports/server/trade.txt')
-    res.status(200).json({ message: err.stack })
+    res.status(200).json({ message: err.message})
   }
 }
 
@@ -93,7 +93,7 @@ export const copyStart = async (req, res) => {
     res.status(200).json({ status: 'done', message: msg })
   } catch (err) {
     logger(`${new Date()}: ${err.stack}`, '/var/www/robot/web/reports/server/trade.txt')
-    res.status(200).json({ message: err.stack })
+    res.status(200).json({ message: err.message})
   }
 }
 
@@ -106,7 +106,7 @@ export const copyEnd = async (req, res) => {
     return res.status(200).json({ status: 'success', message: msg })
   } catch (err) {
     logger(`${new Date()}: ${err.stack}`, '/var/www/robot/web/reports/server/trade.txt')
-    res.status(200).json({ message: err.stack })
+    res.status(200).json({ message: err.message})
   }
 }
 
@@ -119,7 +119,7 @@ export const copyStatistics = async (req, res) => {
     res.status(200).json({ status: 'success', message: msg })
   } catch (err) {
     logger(`${new Date()}: ${err.stack}`, '/var/www/robot/web/reports/server/trade.txt')
-    res.status(200).json({ message: err.stack })
+    res.status(200).json({ message: err.message})
   }
 }
 
@@ -132,7 +132,7 @@ export const copyList = async (req, res) => {
     res.status(200).json({ status: 'success', message: msg })
   } catch (err) {
     logger(`${new Date()}: ${err.stack}`, '/var/www/robot/web/reports/server/trade.txt')
-    res.status(200).json({ message: err.stack })
+    res.status(200).json({ message: err.message})
   }
 }
 
@@ -141,6 +141,6 @@ export const testApp = (req, res) => {
     res.status(200).json({ status: 'online' })
   } catch (err) {
     logger(`${new Date()}: ${err.stack}`, '/var/www/robot/web/reports/server/trade.txt')
-    res.status(200).json({ message: err.stack })
+    res.status(200).json({ message: err.message})
   }
 }

@@ -1,7 +1,7 @@
 import axios from 'axios'
 import Robot from '../robot'
 import TraderRobot from '../trader-robot'
-import { logger } from '../utils/helpers'
+import { logger, isEmpty } from '../utils/helpers'
 import BotUser from '../bot-user'
 
 const telegramErrLog = '/var/www/robot/web/reports/server/telegram.txt'
@@ -26,8 +26,6 @@ const actions = {
           today: today,
           seconds_to_cancel: parseFloat(trade_options.seconds_to_cancel),
         })
-      } else {
-        rob = await rob.setup(trade_options, user, settings, today)
       }
       await rob.initTrade(trade_options, user, settings, today)
     } catch (err) {
@@ -167,6 +165,7 @@ const actions = {
       logger(`${new Date()}: ${err.message}`, tradeErrLog)
     }
   },
+  //copy
   copyStart: async (store, payload) => {
     try {
       const { copy_options, user, settings } = payload
@@ -279,16 +278,13 @@ const actions = {
       logger(`${new Date()}: ${err.message}`, tradeErrLog)
     }
   },
-
+  //trader section
   trader: async (store, payload) => {
     try {
       const { settings, trade_options, user, today } = payload
       //const { getters, commit } = store
       if (!user.deriv_account || user.deriv_account === null) return
-      let rob =
-        settings.namespace === 'test'
-          ? store.getters.testRobots[user.deriv_account]
-          : store.getters.signalRobots[user.deriv_account]
+      let rob = store.getters.signalRobots[user.deriv_account]
       if (rob === undefined) {
         rob = new TraderRobot({
           user: user,
@@ -297,8 +293,7 @@ const actions = {
           today: today,
           seconds_to_cancel: parseFloat(trade_options.seconds_to_cancel),
         })
-      } else {
-        rob = await rob.setup(trade_options, user, settings, today)
+        //rob = await rob.setup(trade_options, user, settings, today)
       }
       await rob.initTrade(trade_options, user, settings, today)
     } catch (err) {
@@ -311,21 +306,23 @@ const actions = {
       const { user, settings, trade_options } = payload
       //const { getters, commit } = store
       if (!user.deriv_account || user.deriv_account === null) return
-      let rob =
-        settings.namespace === 'test'
-          ? store.getters.testRobots[user.deriv_account]
-          : store.getters.traderRobots[user.deriv_account]
+      let rob = store.getters.traderRobots[user.deriv_account]
       if (rob === undefined) {
         rob = new TraderRobot({
           user: user,
-          trade_options: trade_options,
           settings: settings,
           today: settings.today,
-          seconds_to_cancel: parseFloat(trade_options.seconds_to_cancel),
         })
-      } 
+      }
       rob = await rob.setupDigit(user, settings, trade_options)
-      await rob.initDigit(user, settings, trade_options)
+      await rob.checkThreshold()
+      let ti = 5000
+      if (isEmpty(rob.trade)) {
+        ti = 5000
+      }
+      setTimeout(() => {
+        rob.initDigit(trade_options.symbol)
+      }, ti)
     } catch (err) {
       logger(`${new Date()}: ${err.message}`, tradeErrLog)
     }
@@ -334,15 +331,14 @@ const actions = {
   traderRevoke: async (store, payload) => {
     try {
       const { user, settings } = payload
-	  let rob = {}
-	  if (settings.namespace === 'test') {
-		  rob = store.getters.testRobots[user.deriv_account]
-	  } else if (user.is_trading === 'digits') {
-		  rob = store.getters.traderRobots[user.deriv_account]
-	  } else {
-		  rob = store.getters.signalRobots[user.deriv_account]
-	  }
-      
+      let rob = {}
+      if (settings.namespace === 'test') {
+        rob = store.getters.testRobots[user.deriv_account]
+      } else if (user.is_trading === 'digits') {
+        rob = store.getters.traderRobots[user.deriv_account]
+      } else {
+        rob = store.getters.signalRobots[user.deriv_account]
+      }
       if (rob === undefined) {
         const params = {
           app_id: settings.app_id,
@@ -353,31 +349,31 @@ const actions = {
       } else {
         rob = await rob.connect()
       }
-      setTimeout(async() => {
-		    await rob.initRevoke()
-        store.commit(rob.deletePath, user.deriv_account) 
-	    }, 3000);
+      setTimeout(async () => {
+        await rob.initRevoke()
+        store.commit(rob.deletePath, user.deriv_account)
+      }, 3000)
     } catch (err) {
       logger(`${new Date()}: ${err.message}`, tradeErrLog)
     }
   },
   traderThreshold: async (store, payload) => {
     try {
-		let rob = undefined
-		if (payload.namespace === 'test') {
-		  rob = store.getters.testRobots[payload.deriv_account]
-		} else if (payload.type === 'digits') {
-		  rob = store.getters.traderRobots[payload.deriv_account]
-		} else {
-		  rob = store.getters.signalRobots[payload.deriv_account]
-		}
+      let rob = undefined
+      if (payload.namespace === 'test') {
+        rob = store.getters.testRobots[payload.deriv_account]
+      } else if (payload.type === 'digits') {
+        rob = store.getters.traderRobots[payload.deriv_account]
+      } else {
+        rob = store.getters.signalRobots[payload.deriv_account]
+      }
       if (rob === undefined) {
         return
       }
       if (payload.reached != undefined) {
-        await rob.sendMail(payload.message)
+        await rob.sendMail(payload.message, rob.settings.threshold_email)
         rob.close()
-        rob.threshold = payload.reached
+        rob.trade.threshold = payload.reached
         if (
           rob.settings.threshold_email === rob.user.email &&
           rob.settings.action === 'auto'
@@ -396,16 +392,16 @@ const actions = {
             140000
           )*/
         }
-        rob.debug(rob, `${new Date()}: threshold reached`)
+        // rob.debug(rob, `${new Date()}: threshold reached`)
       } else {
-        rob.threshold = 0
+        rob.trade.threshold = 0
         rob.trading = false
         if (payload.type === 'digits' && rob.digits.tradeOptions.symbol) {
           await rob.setupDigit(rob.user, payload.settings, {})
           setTimeout(() => {
-            rob.ticks(rob.digits.tradeOptions.symbol)
-          }, 3000);
-        } else if (payload.type === 'signals')  {
+            rob.initDigit(rob.digits.tradeOptions.symbol)
+          }, 3000)
+        } else if (payload.type === 'signals') {
           rob = await rob.connect()
         }
       }
@@ -416,14 +412,14 @@ const actions = {
   },
   traderCloseConnections: async (store, payload) => {
     try {
-		let robs = {}
-		if (payload.namespace === 'test') {
-		  robs = store.getters.testRobots
-		} else if (payload.user.is_trading === 'digits') {
-		  robs = store.getters.traderRobots
-		} else {
-		  robs = store.getters.signalRobots
-		}
+      let robs = {}
+      if (payload.namespace === 'test') {
+        robs = store.getters.testRobots
+      } else if (payload.user.is_trading === 'digits') {
+        robs = store.getters.traderRobots
+      } else {
+        robs = store.getters.signalRobots
+      }
       for (const token in robs) {
         let robot = robs[token]
         if (robot !== undefined) {
@@ -438,35 +434,107 @@ const actions = {
   },
   traderWake: async (store, payload) => {
     try {
-      const { settings, trade_options, user, today } = payload
+      const { settings, user, trade_options } = payload
+      if (!user.deriv_account) return
+      let rob = undefined
+      if (settings.namespace === 'test') {
+        rob = store.getters.testRobots[user.deriv_account]
+      } else if (user.is_trading === 'signals') {
+        rob = store.getters.signalRobots[user.deriv_account]
+      } else if (user.is_trading === 'digits') {
+        rob = store.getters.traderRobots[user.deriv_account]
+      }
+      if (rob === undefined) {
+        rob = new TraderRobot({
+          app_id: settings.deriv_app_id,
+          user: user,
+          settings: settings,
+          today: settings.today,
+        })
+      }
+      rob.trade.threshold = 0
+      rob.trading = false
+      rob.trade.message = ''
+      if (user.is_trading === 'signals') {
+        rob = await rob.setup({}, user, settings, settings.today)
+      } else if (user.is_trading === 'digits') {
+        rob = await rob.setupDigit(user, settings, trade_options)
+        setTimeout(async () => {
+          await rob.checkThreshold()
+          if (rob.digits.subscribe_id) {
+            rob.task = 'forget'
+            rob.next = 'end'
+            const data = {
+              forget: rob.digits.subscribe_id,
+              passthrough: {
+                next: 'end',
+              },
+            }
+            await rob.send(data)
+            delete this.digits.subscribe_id
+          }
+          if (trade_options.symbol !== undefined) {
+            rob.initDigit(trade_options.symbol)
+          }
+        }, 3000) // wait for connection to complete
+      }
+    } catch (err) {
+      logger(`${new Date()}: ${err.message}`, traderErrLog)
+    }
+  },
+  traderSleep: async (store, payload) => {
+    try {
+      const { settings, user } = payload
       //const { getters, commit } = store
       if (!user.deriv_account) return
       let rob = undefined
-	  if (settings.namespace === 'test') {
-		rob = store.getters.testRobots[user.deriv_account]
-	  } else if (user.is_trading === 'digits') {
-		rob = store.getters.traderRobots[user.deriv_account]
-	  } else {
-		rob = store.getters.signalRobots[user.deriv_account]
-	  }
-      if (rob === undefined) {
-        rob = new TraderRobot({
-          app_id: settings.app_id,
-          user: user,
-          trade_options: trade_options,
-          settings: settings,
-          today: today,
-          seconds_to_cancel: parseFloat(trade_options.seconds_to_cancel),
-        })
-      } else if(user.is_trading === 'signals') {
-        rob = await rob.setup(trade_options, user, settings, today)
-      } else if(user.is_trading === 'digits') {
-        rob = await rob.setupDigit(user, settings, trade_options)
+      if (user.is_trading === 'signals') {
+        rob = store.getters.signalRobots[user.deriv_account]
+      } else if (user.is_trading === 'digits') {
+        rob = store.getters.traderRobots[user.deriv_account]
       }
-      await store.commit(rob.savePath, rob)
+      if (rob === undefined) {
+        return
+      }
+      if (rob.trading === true) {
+        setTimeout(async () => {
+          await rob.close()
+        }, 30000)
+      } else {
+        await rob.close()
+      }
+      return true
     } catch (err) {
-      logger(`${new Date()}: ${err.message}`, telegramErrLog)
+      console.log(err.message)
     }
+  },
+  async sendMessage(store, payload) {
+    axios.post(`${store.getters.traderApiUrl}/site/send-message`, payload, {
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+    })
+  },
+  async updateUserBalance(store, payload) {
+    payload.platform = 'web'
+    payload.type = 'trader'
+    // const token = getters.user.access_token;
+    axios
+      .post(
+        `${store.getters.traderApiUrl}/indexes/update-user-balance`,
+        payload,
+        {
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            //Authorization: `Basic ${getters.user.access_token}`
+          },
+        }
+      )
+      .catch(async (error) => {
+        await logger(error.message)
+      })
   },
 }
 

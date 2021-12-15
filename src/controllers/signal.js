@@ -17,7 +17,7 @@ export const sendNotification = async (req, res) => {
     res.status(200).json({ response: response })
   } catch (err) {
     logger(`${new Date()}: ${err.stack}`, '/var/www/robot/web/reports/server/signal.txt')
-    res.status(200).json({ message: err.stack })
+    res.status(200).json({ message: err.message})
   }
 }
 
@@ -26,7 +26,7 @@ export const testApp = (req, res) => {
     res.status(200).json({ status: 'online' })
   } catch (err) {
     logger(`${new Date()}: ${err.stack}`, '/var/www/robot/web/reports/server/test.txt')
-    res.status(200).json({ message: err.stack })
+    res.status(200).json({ message: err.message})
   }
 }
 
@@ -38,7 +38,7 @@ export const subscribe = async (req, res) => {
     const response = await messaging.subscribeToTopic([tokens], topic)
     res.status(200).json({ message: response })
   } catch (err) {
-    res.status(200).json({ message: err.stack })
+    res.status(200).json({ message: err.message})
   }
 }
 export const unsubscribe = async (req, res) => {
@@ -47,7 +47,7 @@ export const unsubscribe = async (req, res) => {
     const response = await messaging.unsubscribeFromTopic([tokens], topic)
     res.status(200).json({ message: response })
   } catch (err) {
-    res.status(200).json({ message: err.stack })
+    res.status(200).json({ message: err.message})
   }
 }
 */

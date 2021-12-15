@@ -9,4 +9,4 @@ export default new Store({
   mutations,
   state,
   getters
-}, ['trader'])
+})

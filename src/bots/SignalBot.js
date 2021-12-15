@@ -1,8 +1,11 @@
-import Store from './store/trade'
+import Store from '../store/trade'
+import tStore from '../store'
+import TraderRobot from '../trader-robot'
 
-class Trader {
+class SignalBot {
   constructor() {
     this.store = Store
+    this.tstore = tStore
     const trade = this
     trade.store.subscribe('threshold', async (payload) => {
       await trade.store.dispatch('threshold', payload)
@@ -18,6 +21,22 @@ class Trader {
 
     trade.store.subscribe('sendMail', async (payload) => {
       await trade.store.dispatch('sendMail', payload)
+    })
+    //trader
+    trade.tstore.subscribe('threshold', async (payload) => {
+      await trade.tstore.dispatch('traderThreshold', payload)
+    })
+
+    trade.tstore.subscribe('closeConnections', async (payload) => {
+      await trade.tstore.dispatch('traderCloseConnections', payload)
+    })
+
+    trade.tstore.subscribe('tradeCount', async (payload) => {
+      await trade.tstore.dispatch('traderTradeCount', payload)
+    })
+
+    trade.tstore.subscribe('sendMail', async (payload) => {
+      await trade.tstore.dispatch('sendMail', payload)
     })
   }
 
@@ -98,4 +117,4 @@ class Trader {
   }
 }
 
-export default Trader
+export default SignalBot

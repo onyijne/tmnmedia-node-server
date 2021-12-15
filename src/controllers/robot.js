@@ -23,7 +23,7 @@ export const addAccount = async (req, res) => {
     res.status(200).json({ status: 'done' })
   } catch (err) {
     logger(`${new Date()}: ${err.stack}`, '/var/www/robot/web/reports/server/robot.txt')
-    res.status(200).json({ message: err.stack })
+    res.status(200).json({ message: err.message})
   }
 }
 // NOT IN USE YET
@@ -41,7 +41,7 @@ export const sendTrade = async (req, res) => {
     res.status(200).json({ response: 'done' })
   } catch (err) {
     logger(`${new Date()}: ${err.stack}`, '/var/www/robot/web/reports/server/robot.txt')
-    res.status(200).json({ message: err.stack })
+    res.status(200).json({ message: err.message})
   }
 }
 
@@ -52,7 +52,7 @@ export const handleEvents = (req, res) => {
     res.status(200).json({ status: 'ok' })
   } catch (err) {
     logger(`${new Date()}: ${err.stack}`, '/var/www/robot/web/reports/server/robot.txt')
-    res.status(200).json({ message: err.stack })
+    res.status(200).json({ message: err.message})
   }
 }
 
@@ -63,9 +63,21 @@ export const websocket = (req, res) => {
 
 export const listClients = (req, res) => {
   try{
-    res.status(200).json({ clients: Store.getters.robots })
+    const robs = {}
+    const robots = Store.getters.robots
+    for (const key in robots) {
+      if (Object.hasOwnProperty.call(robots, key)) {
+        const rob = robots[key]
+        // const store = rob.store
+        delete rob.store
+        delete rob.ws
+        delete rob.settings
+        robs[rob.user.id] = rob
+      }
+    }
+    res.status(200).json({ clients: robs })
   } catch (err) {
     logger(`${new Date()}: ${err.stack}`, '/var/www/robot/web/reports/server/robot.txt')
-    res.status(200).json({ message: err.stack })
+    res.status(200).json({ message: err.message})
   }
 }
