@@ -8,5 +8,5 @@ export default new Store({
   actions,
   mutations,
   state,
-  getters
+  getters,
 })

@@ -282,18 +282,16 @@ const actions = {
   trader: async (store, payload) => {
     try {
       const { settings, trade_options, user, today } = payload
-      //const { getters, commit } = store
       if (!user.deriv_account || user.deriv_account === null) return
-      let rob = store.getters.signalRobots[user.deriv_account]
+      let rob = store.getters.traderRobotsSig[user.deriv_account]
       if (rob === undefined) {
         rob = new TraderRobot({
           user: user,
-          trade_options: trade_options,
           settings: settings,
           today: today,
-          seconds_to_cancel: parseFloat(trade_options.seconds_to_cancel),
+          savePath: 'addTraderRobotSig',
+          deletePath: 'removeTraderRobotSig',
         })
-        //rob = await rob.setup(trade_options, user, settings, today)
       }
       await rob.initTrade(trade_options, user, settings, today)
     } catch (err) {
@@ -312,6 +310,8 @@ const actions = {
           user: user,
           settings: settings,
           today: settings.today,
+          savePath: 'addTraderRobot',
+          deletePath: 'removeTraderRobot',
         })
       }
       rob = await rob.setupDigit(user, settings, trade_options)
@@ -332,18 +332,26 @@ const actions = {
     try {
       const { user, settings } = payload
       let rob = {}
-      if (settings.namespace === 'test') {
+      if (user.is_trading === undefined) {
         rob = store.getters.testRobots[user.deriv_account]
       } else if (user.is_trading === 'digits') {
         rob = store.getters.traderRobots[user.deriv_account]
       } else {
-        rob = store.getters.signalRobots[user.deriv_account]
+        rob = store.getters.traderRobotsSig[user.deriv_account]
       }
       if (rob === undefined) {
         const params = {
           app_id: settings.app_id,
           user: user,
           settings: settings,
+          savePath:
+            user.is_trading === 'digits'
+              ? 'addTraderRobot'
+              : 'addTraderRobotSig',
+          deletePath:
+            user.is_trading === 'digits'
+              ? 'removeTraderRobot'
+              : 'removeTraderRobotSig',
         }
         rob = new TraderRobot(params)
       } else {
@@ -360,20 +368,20 @@ const actions = {
   traderThreshold: async (store, payload) => {
     try {
       let rob = undefined
-      if (payload.namespace === 'test') {
+      if (payload.type === undefined) {
         rob = store.getters.testRobots[payload.deriv_account]
       } else if (payload.type === 'digits') {
         rob = store.getters.traderRobots[payload.deriv_account]
       } else {
-        rob = store.getters.signalRobots[payload.deriv_account]
+        rob = store.getters.traderRobotsSig[payload.deriv_account]
       }
       if (rob === undefined) {
         return
       }
-      if (payload.reached != undefined) {
+      if (payload.reached !== undefined) {
         await rob.sendMail(payload.message, rob.settings.threshold_email)
-        rob.close()
         rob.trade.threshold = payload.reached
+        rob.close()
         if (
           rob.settings.threshold_email === rob.user.email &&
           rob.settings.action === 'auto'
@@ -413,12 +421,12 @@ const actions = {
   traderCloseConnections: async (store, payload) => {
     try {
       let robs = {}
-      if (payload.namespace === 'test') {
+      if (payload.user.is_trading === undefined) {
         robs = store.getters.testRobots
       } else if (payload.user.is_trading === 'digits') {
         robs = store.getters.traderRobots
       } else {
-        robs = store.getters.signalRobots
+        robs = store.getters.traderRobotsSig
       }
       for (const token in robs) {
         let robot = robs[token]
@@ -437,10 +445,10 @@ const actions = {
       const { settings, user, trade_options } = payload
       if (!user.deriv_account) return
       let rob = undefined
-      if (settings.namespace === 'test') {
+      if (user.is_trading === undefined) {
         rob = store.getters.testRobots[user.deriv_account]
       } else if (user.is_trading === 'signals') {
-        rob = store.getters.signalRobots[user.deriv_account]
+        rob = store.getters.traderRobotsSig[user.deriv_account]
       } else if (user.is_trading === 'digits') {
         rob = store.getters.traderRobots[user.deriv_account]
       }
@@ -450,6 +458,14 @@ const actions = {
           user: user,
           settings: settings,
           today: settings.today,
+          savePath:
+            user.is_trading === 'digits'
+              ? 'addTraderRobot'
+              : 'addTraderRobotSig',
+          deletePath:
+            user.is_trading === 'digits'
+              ? 'removeTraderRobot'
+              : 'removeTraderRobotSig',
         })
       }
       rob.trade.threshold = 0
@@ -489,9 +505,11 @@ const actions = {
       if (!user.deriv_account) return
       let rob = undefined
       if (user.is_trading === 'signals') {
-        rob = store.getters.signalRobots[user.deriv_account]
+        rob = store.getters.traderRobotsSig[user.deriv_account]
       } else if (user.is_trading === 'digits') {
         rob = store.getters.traderRobots[user.deriv_account]
+      } else {
+        rob = store.getters.testRobots[user.deriv_account]
       }
       if (rob === undefined) {
         return
@@ -499,7 +517,7 @@ const actions = {
       if (rob.trading === true) {
         setTimeout(async () => {
           await rob.close()
-        }, 30000)
+        }, 5 * 1000 * 60) //wait for 5 minutes to ensre trade has ended
       } else {
         await rob.close()
       }
@@ -515,6 +533,7 @@ const actions = {
         'Content-Type': 'application/json',
       },
     })
+    process.env.NODE_ENV !== 'production' ? console.log(payload) : ""
   },
   async updateUserBalance(store, payload) {
     payload.platform = 'web'
@@ -535,6 +554,25 @@ const actions = {
       .catch(async (error) => {
         await logger(error.message)
       })
+  },
+  async mt5(store, payload) {
+    try {
+      const { action, wait_time, start_url } = payload
+      if (action != 'restart' || Number.isNaN(wait_time)) {
+        process.env.NODE_ENV !== 'production' ? console.log(`${action} - ${wait_time}`) : ''
+        return
+      }
+      setTimeout(() => {
+        axios.post(start_url, {
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+          },
+        })
+      }, wait_time * 1000 * 60)
+    } catch (error) {
+      console.log(error.message)
+    }
   },
 }
 

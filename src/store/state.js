@@ -6,7 +6,7 @@ const state = {
 	appId: 24146,
 	botUsers: {},
 	traderRobots: {},
-	traderTestRobots: {},
+	traderRobotsSig: {},
 	signalRobots: {},
 	signalTestRobots: {},
 	testRobots: {},

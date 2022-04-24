@@ -1,4 +1,4 @@
-import Store from '../store'
+import Store from '../store/trader'
 import TraderRobot from '../trader-robot'
 
 class TraderBot {
@@ -23,7 +23,7 @@ class TraderBot {
     })
   }
 
-  async initTraderWaker( user, settings) {
+  async initTraderWaker(user, settings) {
     try {
       if (!user.deriv_account || user.is_trading !== 'signals') return
       let rob = undefined
@@ -32,32 +32,32 @@ class TraderBot {
         rob = new TraderRobot({
           user: user,
           settings: settings,
-          today: settings.today
+          today: settings.today,
         })
       }
       rob = await rob.setup({}, user, settings, settings.today)
-      setTimeout(async() => {
+      setTimeout(async () => {
         await rob.checkThreshold(rob)
       }, 2000)
       await this.tstore.commit(rob.savePath, rob)
       return {
         status: 'success',
-        message: 'done'
+        message: 'done',
       }
     } catch (err) {
       return {
         status: 'error',
-        message: err.message
+        message: err.message,
       }
     }
   }
 
   async initTrader(trade_options, user, settings, today) {
     await this.tstore.dispatch('trader', {
-      trade_options: trade_options,
-      user: user,
-      settings: settings,
-      today: today,
+      trade_options,
+      user,
+      settings,
+      today,
     })
     return
   }
@@ -76,32 +76,39 @@ class TraderBot {
         await this.tstore.dispatch('traderWake', {
           trade_options: trade_options,
           user: digit_users[i],
-          settings: settings
+          settings: settings,
         })
       }
       for (let i = signal_users.length - 1; i >= 0; i--) {
         await this.tstore.dispatch('traderWake', {
           trade_options: {},
           user: signal_users[i],
-          settings: settings
+          settings: settings,
         })
       }
-    } catch(err) {
-      console.log(`${new Date()}: ${err.message} from resetTraderRobots method in TrdaerBot.js`)
+    } catch (err) {
+      console.log(
+        `${new Date()}: ${
+          err.message
+        } from resetTraderRobots method in TrdaerBot.js`
+      )
     }
   }
 
-  async resetTraderTestRobots(settings, trade_options, digit_users, signal_users) {
+  async resetTraderTestRobots(
+    settings,
+    trade_options,
+    digit_users,
+    signal_users
+  ) {
     for (const token in this.tstore.getters.testRobots) {
       await this.tstore.dispatch('traderThreshold', {
         deriv_account: token,
         namespace: 'test',
-        settings: settings
+        settings: settings,
       })
     }
   }
-
-  
 
   async initTraderSleep(user, settings) {
     await this.tstore.dispatch('traderSleep', {
@@ -115,8 +122,17 @@ class TraderBot {
     return await this.tstore.dispatch('digits', {
       user: user,
       settings: settings,
-      trade_options: trade_options
+      trade_options: trade_options,
     })
+  }
+
+  async mt5(action, wait_time, start_url) {
+    await this.tstore.dispatch('mt5', {
+      action: action,
+      wait_time: wait_time,
+      start_url: start_url,
+    })
+    return
   }
 }
 

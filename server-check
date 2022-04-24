@@ -1,72 +1,83 @@
 #!/usr/bin/env node
-const fs = require('fs');
-const http = require('http');
-const child_process = require('child_process');
+var fs = require('fs')
+const http = require('http')
+var child_process = require('child_process')
 
 const optionsTrade = {
   host: 'wss.tmnmedia.com.ng',
-  path: '/v2/trade/test'
-};
+  path: '/v2/trade/test',
+}
 const optionsTelegram = {
   host: 'socket.tmnmedia.com.ng',
-  path: '/v2/robot/test'
-};
+  path: '/v2/robot/test',
+}
 const optionsSignal = {
   host: 'ws.tmnmedia.com.ng',
-  path: '/v2/signal/test'
-};
-
+  path: '/v2/signal/test',
+}
+const optionsTrader = {
+  host: 'tserver.tmnmedia.com.ng',
+  path: '/v3/robot/test',
+}
 
 const options = [
-{
-  option: optionsSignal,
-  start: 'node /var/www/robot/ws/server-signal'
-}, 
-{
-  option: optionsTrade,
-  start: 'node /var/www/robot/ws/server-trade'
-}, 
-{
-  option: optionsTelegram,
-  start: 'node /var/www/robot/ws/server-telegram'
-}];
+  {
+    option: optionsSignal,
+    start: 'node /var/www/robot/ws/server-signal',
+  },
+  {
+    option: optionsTrade,
+    start: 'node /var/www/robot/ws/server-trade',
+  },
+  {
+    option: optionsTelegram,
+    start: 'node /var/www/robot/ws/server-telegram',
+  },
+  {
+    option: optionsTrader,
+    start: 'node /var/www/robot/ws/server-trader',
+  },
+]
 
 function logError(err) {
-  fs.appendFile('/var/www/robot/web/reports/server/error.txt', err, function (err) {
-      // if (err) throw err;
+  fs.appendFile('/var/www/robot/web/reports/server/error.txt', err, function (
+    err
+  ) {
+    // if (err) throw err;
   })
 }
-const startServer = function(server){
+const startServer = function (server) {
   child_process.exec(server, (err, stdout, stderr) => {
     if (err) {
       // node couldn't execute the command
       logError(err)
     }
-  });
-};
+  })
+}
 
 for (var i = options.length - 1; i >= 0; i--) {
   try {
     var server = options[i]
-      http.request(server.option, function(response) {
-        let str = '';
+    http
+      .request(server.option, function (response) {
+        let str = ''
         //another chunk of data has been received, so append it to `str`
         response.on('data', function (chunk) {
-          str += chunk;
-        });
+          str += chunk
+        })
         //the whole response has been received, so we just print it out here
-       response.on('end', function () {
-         try{
-          if (response.socket._httpMessage.res.statusCode !== 200) {
-            startServer(server.start)
+        response.on('end', function () {
+          try {
+            if (response.socket._httpMessage.res.statusCode !== 200) {
+              startServer(server.start)
+            }
+          } catch (err) {
+            logError(err)
           }
-        } catch(err){
-          logError(err)
-         }
-        });
-      }).end();
-    } catch(err){
-      logError(err)
-    }
-  
+        })
+      })
+      .end()
+  } catch (err) {
+    logError(err)
+  }
 }

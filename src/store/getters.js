@@ -19,6 +19,10 @@ const getters = {
     return (deriv_account) => traderRobots[deriv_account]
   },
   traderRobots: ({ traderRobots }) => traderRobots,
+  traderRobotSig: ({ traderRobotsSig }) => {
+    return (deriv_account) => traderRobotsSig[deriv_account]
+  },
+  traderRobotsSig: ({ traderRobotsSig }) => traderRobotsSig,
   signalRobot: ({ signalRobots }) => {
     return (deriv_account) => signalRobots[deriv_account]
   },

@@ -1,7 +1,7 @@
 import express from 'express'
 
  import { robotWaker, robotRevoker, robotTrader, clearTrader, robotDigits,
-    listClients, robotSleep, robotWakeAll } from '../controllers/trader'
+    listClients, robotSleep, robotWakeAll, mt5 } from '../controllers/trader'
 
 const tradeRouter = express.Router()
 
@@ -13,5 +13,6 @@ tradeRouter.post('/reset-trades', clearTrader)
 tradeRouter.post('/digits', robotDigits)
 tradeRouter.get('/clients', listClients)
 tradeRouter.post('/wake-all', robotWakeAll)
+tradeRouter.post('/mt5', mt5)
 
 export default tradeRouter
