@@ -22,6 +22,7 @@ class Trader {
   }
 
   async initTrade(trade_options, user, settings, today) {
+    //console.log(user)
     await this.store.dispatch('trade', {
       trade_options: trade_options,
       user: user,

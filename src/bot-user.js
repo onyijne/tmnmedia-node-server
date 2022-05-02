@@ -17,7 +17,7 @@ class BotUser {
     this.loaded = false
     this.task = null
     this.form = {
-      app: 'test'
+      app: 'test',
     }
     this.message = param.message || '/login to start'
     this.timeOutId = null
@@ -51,7 +51,7 @@ class BotUser {
     if (!this.loaded) {
       await this.loadUser(store) // should the instance restart, this will load user from DB
     }
-   // console.log(this)
+    // console.log(this)
     if (!this.user.access_token) {
       return false
     }
@@ -62,11 +62,15 @@ class BotUser {
     try {
       await this.setToken()
       this.form.token = this.user.access_token
-      const res = await axios.post(`${this.api_url}/robot/validate-access-token`, this.form, {
-        headers: {
-          authorization: `Basic ${this.user.access_token}`
+      const res = await axios.post(
+        `${this.api_url}/robot/validate-access-token`,
+        this.form,
+        {
+          headers: {
+            authorization: `Basic ${this.user.access_token}`,
+          },
         }
-      })
+      )
       const data = res.data
       let re = false
       if (data.status !== 'success') {
@@ -74,8 +78,8 @@ class BotUser {
         this.connected = false
         this.tradeClients = {}
         await store.commit('telegram/addBotUser', this)
-        return false;
-      } else if(data.user.id != 0) {
+        return false
+      } else if (data.user.id != 0) {
         this.connected = true
         re = true
       } else {
@@ -91,7 +95,7 @@ class BotUser {
     }
   }
 
-  async setToken () {
+  async setToken() {
     const response = await axios.get(`${this.api_url}/site/get-token`)
     this.form.csrf_token = response.data
   }
@@ -102,23 +106,23 @@ class BotUser {
       this.form.email = email
       const res = await axios.post(`${this.api_url}/robot/auth`, this.form, {
         headers: {
-          authorization: `Basic ${this.user.access_token}`
-        }
+          authorization: `Basic ${this.user.access_token}`,
+        },
       })
       const data = await res.data
       if (!data.status) {
-        let msg  = data.message ? data.message : data.data
+        let msg = data.message ? data.message : data.data
         msg = msg ? msg : ''
         return `auth was not successful: ${msg}`
       }
-      
+
       if (data.status === 'success') {
         this.task = 'login'
         this.user.email = email
         store.commit('telegram/addBotUser', this)
         return `authenticate with the token sent to ${email}`
       }
-      let msg  = data.message ? data.message : data.data
+      let msg = data.message ? data.message : data.data
       msg = msg ? msg : ''
       return `auth was not successful: ${msg}`
     } catch (error) {
@@ -134,18 +138,18 @@ class BotUser {
       this.form.bot_id = this.chat_id
       const res = await axios.post(`${this.api_url}/robot/login`, this.form, {
         headers: {
-          authorization: `Basic ${this.user.access_token}`
-        }
+          authorization: `Basic ${this.user.access_token}`,
+        },
       })
       const data = res.data
       if (data.status !== 'success') {
-        const msg  = data.message ? data.message : ''
+        const msg = data.message ? data.message : ''
         return `auth was not successful: ${msg}`
       }
       this.task = ''
       this.connected = true
       this.user = { ...this.user, ...data.user }
-     await store.commit('telegram/addBotUser', this)
+      await store.commit('telegram/addBotUser', this)
       return data.message
     } catch (error) {
       logger(`${new Date()}: ${error.message}`, this.logFileTxt)
@@ -160,12 +164,12 @@ class BotUser {
       this.form.token = null
       const res = await axios.post(`${this.api_url}/robot/logout`, this.form, {
         headers: {
-          authorization: `Basic ${this.user.access_token}`
-        }
+          authorization: `Basic ${this.user.access_token}`,
+        },
       })
       const data = await res.data
       if (data.status !== 'success') {
-        const msg  = data.message ? data.message : ''
+        const msg = data.message ? data.message : ''
         return `logout was not successful: ${msg}`
       }
       this.task = ''
@@ -184,12 +188,12 @@ class BotUser {
       const url = `/robot/list-trade-robots?platform_to_trade=${platform_to_trade}&app=${this.app}`
       const res = await axios.get(`${this.api_url}${url}`, {
         headers: {
-          authorization: `Basic ${this.user.access_token}`
-        }
+          authorization: `Basic ${this.user.access_token}`,
+        },
       })
       const data = await res.data
       if (data.status !== 'success') {
-        const msg  = data.message ? data.message : ''
+        const msg = data.message ? data.message : ''
         return `request was not successful: ${msg}`
       }
       this.tradeClients = data.clients
@@ -213,12 +217,12 @@ class BotUser {
       const url = `/robot/get-trade-accounts?account_to_trade=${account_to_trade}&app=${this.app}`
       const res = await axios.get(`${bot.api_url}${url}`, {
         headers: {
-          authorization: `Basic ${bot.user.access_token}`
-        }
+          authorization: `Basic ${bot.user.access_token}`,
+        },
       })
       const data = await res.data
       if (data.status !== 'success') {
-        const msg  = data.message ? data.message : ''
+        const msg = data.message ? data.message : ''
         bot.task = ''
         // bot.socket = ''
         bot.tradingData = {}
@@ -231,7 +235,7 @@ class BotUser {
         // bot.socket = ''
         bot.tradingData = {}
         store.commit('telegram/addBotUser', bot)
-      }, 12000);
+      }, 12000)
       await store.commit('telegram/addBotUser', bot)
       return `In 12 seconds reply with the robot <b>ID</b> to execute`
     } catch (error) {
@@ -250,7 +254,7 @@ class BotUser {
         return `Trade robot with ID ${id} not found reload the robots with /robots 
         use <code>/robots api</code> to list trade robots for API`
       }
-      const platform_to_trade = robot.platform_to_trade 
+      const platform_to_trade = robot.platform_to_trade
       if (platform_to_trade === undefined) {
         return `Selected trade robot does not have platform_to_trade specified. Reload the robots with /robots 
         use <code>/robots api</code> to list trade robots for API`
@@ -259,13 +263,17 @@ class BotUser {
       //delete robot.id
       //delete robot.signal_type
       this.tradingData.trade_options = robot
+      this.tradingData.settings = {
+        ...this.tradingData.settings,
+        ...{ namespace: this.app === 'test' ? 'test' : '' },
+      }
       if (platform_to_trade.toLowerCase() === 'api') {
         const url = 'https://wss.tmnmedia.com.ng/v2/trade/trade'
-        
+
         const res = await axios.post(url, this.tradingData, {
           headers: {
-            authorization: `Basic ${this.user.access_token}`
-          }
+            authorization: `Basic ${this.user.access_token}`,
+          },
         })
         const data = await res.data
         if (data.response === 'done') {
@@ -275,50 +283,57 @@ class BotUser {
           store.commit('telegram/addBotUser', this)
           return 'api trade request sent'
         }
-        let msg  = data.message ? data.message : data.data
+        let msg = data.message ? data.message : data.data
         msg = msg ? msg : ''
         return `request was not successful: ${msg}`
       } else {
         // this.socket.emit('extension-trade', robot)
-        this.form = { id: id, account_to_trade: 'extension', app: this.app, platform: 'bot' }
-       const res = await axios.post(`${this.api_url}/robot/send-trade`, this.form, {
-        headers: {
-          authorization: `Basic ${this.user.access_token}`
+        this.form = {
+          id: id,
+          account_to_trade: 'extension',
+          app: this.app,
+          platform: 'bot',
         }
-      })
-      const data = await res.data
-      if (data.status === 'success') {
-        this.task = ''
-        this.tradingData = {}
-        store.commit('telegram/addBotUser', this)
-        return 'extension trade request sent'
+        const res = await axios.post(
+          `${this.api_url}/robot/send-trade`,
+          this.form,
+          {
+            headers: {
+              authorization: `Basic ${this.user.access_token}`,
+            },
+          }
+        )
+        const data = await res.data
+        if (data.status === 'success') {
+          this.task = ''
+          this.tradingData = {}
+          store.commit('telegram/addBotUser', this)
+          return 'extension trade request sent'
+        }
+        let msg = data.message ? data.message : data.data
+        msg = msg ? msg : ''
+        return `request was not successful: ${msg}`
       }
-      let msg  = data.message ? data.message : data.data
-      msg = msg ? msg : ''
-      return `request was not successful: ${msg}`
-      }
-      
     } catch (error) {
       logger(`${new Date()}: ${error.message}`, this.logFileTxt)
       return error.message
     }
   }
 
-  async preDeriv(store, email)
-  {
+  async preDeriv(store, email) {
     try {
       let bot = this
       bot.form.email = email
       const url = `/robot/wake-deriv`
       const res = await axios.post(`${bot.api_url}${url}`, bot.form, {
         headers: {
-          authorization: `Basic ${bot.user.access_token}`
-        }
+          authorization: `Basic ${bot.user.access_token}`,
+        },
       })
       const data = await res.data
       bot.form.email = ''
       if (data.status !== 'success') {
-        const msg  = data.message ? data.message : ''
+        const msg = data.message ? data.message : ''
         bot.task = ''
         bot.derivClients = {}
         store.commit('telegram/addBotUser', bot)
@@ -330,7 +345,7 @@ class BotUser {
         bot.task = ''
         bot.derivClients = {}
         store.commit('telegram/addBotUser', bot)
-      }, 12000);
+      }, 12000)
       await store.commit('telegram/addBotUser', bot)
       return `In 12 seconds reply with /confirm`
     } catch (error) {
@@ -345,15 +360,15 @@ class BotUser {
       const url = 'https://wss.tmnmedia.com.ng/v2/trade/wake'
       const res = await axios.post(url, this.derivClients, {
         headers: {
-          authorization: `Basic ${this.user.access_token}`
-        }
+          authorization: `Basic ${this.user.access_token}`,
+        },
       })
       const data = await res.data
       this.task = ''
       store.commit('telegram/addBotUser', this)
       let re = ''
       if (data.response !== 'done') {
-        let msg  = data.message ? data.message : data.data
+        let msg = data.message ? data.message : data.data
         msg = msg ? msg : ''
         return `not successful: ${msg}`
       }
@@ -364,22 +379,20 @@ class BotUser {
     }
   }
 
-  async toggleApp(store, app)
-  {
+  async toggleApp(store, app) {
     if (!app) {
-        return `Active App is ${this.app.toUpperCase()}`
-      }
-      if (app.toLowerCase() !== 'live' && app.toLowerCase() !== 'test') {
-        return `Active App is ${this.app.toUpperCase()}`
-      }
-      this.app = app
-      this.form.app = app
-      store.commit('telegram/addBotUser', this)
-      return `Active App now ${this.app.toUpperCase()}`
+      return `Active App is ${this.app.toUpperCase()}`
+    }
+    if (app.toLowerCase() !== 'live' && app.toLowerCase() !== 'test') {
+      return `Active App is ${this.app.toUpperCase()}`
+    }
+    this.app = app
+    this.form.app = app
+    store.commit('telegram/addBotUser', this)
+    return `Active App now ${this.app.toUpperCase()}`
   }
 
-  async serverRefresh(server)
-  {
+  async serverRefresh(server) {
     if (!['trade', 'signal'].includes(server)) {
       return '<b>trade or signal</b> server not specified'
     }
@@ -387,14 +400,13 @@ class BotUser {
     exec(`node /var/www/robot/ws/server-${server}`, (err, stdout, stderr) => {
       if (err) {
         // node couldn't execute the command
-        re = err.message;
+        re = err.message
       } else {
         re = `done: ${stdout}`
       }
-    });
+    })
     return re
   }
-
 }
 
-export default BotUser;
+export default BotUser

@@ -1,5 +1,6 @@
 import fs from 'fs'
 import Trader from '../trader'
+import SignalBot from '../bots//SignalBot'
 import { logger } from '../utils/helpers'
 
 fs.writeFile('/var/www/robot/web/reports/server/trade.txt', 'ok', function (err) {
@@ -13,6 +14,7 @@ fs.writeFile('/var/www/robot/web/reports/server/debug.txt', 'ok', function (err)
     })
 
 var DerivClient = new Trader()
+var DerivClientSignal = new SignalBot()
 
 export const robotRevoke = async (req, res) => {
   const { token, settings } = req.body
@@ -20,7 +22,7 @@ export const robotRevoke = async (req, res) => {
     if (!token) {
       return res.status(200).json({ response: 'null' })
     }
-    await DerivClient.initRevoke(token, settings)
+    await  DerivClientSignal.initRevoke(token, settings)
     res.status(200).json({ status: 'done' })
   } catch (err) {
     logger(`${new Date()}: ${err.stack}`, '/var/www/robot/web/reports/server/trade.txt')
@@ -32,17 +34,9 @@ export const robotTrade = async (req, res) => {
   
   try {
     const { trade_options, today, settings, users } = req.body
+    // console.log(settings)
     for (let i = users.length - 1; i >= 0; i--) {
-      try {
-        await DerivClient.store.dispatch('trade', {
-          trade_options: trade_options,
-          user: users[i],
-          settings: settings,
-          today: today
-        })
-      } catch(err) {
-        await logger(err)
-      }
+      DerivClientSignal.initTrade(trade_options, users[i], settings, today)
     }
     res.status(200).json({ response: 'done' })
   } catch (err) {
@@ -55,9 +49,9 @@ export const clearTrades = async (req, res) => {
   const { task } = req.body
   try {
     if (task === 'routine') {
-      await DerivClient.resetRobots()
+      await DerivClientSignal.resetRobots()
     } else if (task === 'routine-test') {
-      await DerivClient.resetTestRobots()
+      await DerivClientSignal.resetTestRobots()
     }
     return res.status(200).json({ status: 'success' })
   } catch (err) {
@@ -72,7 +66,7 @@ export const robotWake = async (req, res) => {
     const { trade_options, today, settings, users } = req.body
     for (let i = users.length - 1; i >= 0; i--) {
       try {
-        await DerivClient.initWake(trade_options, users[i],  settings, today)
+        await DerivClientSignal.initWake(trade_options, users[i],  settings, today)
       } catch(err) {
         await logger(err)
       }

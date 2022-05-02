@@ -1,8 +1,9 @@
 import axios from 'axios'
-import Robot from '../robot'
+
 import TraderRobot from '../trader-robot'
 import { logger, isEmpty } from '../utils/helpers'
-import BotUser from '../bot-user'
+import SignalRobot from '../robot-signal'
+import Robot from '../robot'
 
 const telegramErrLog = '/var/www/robot/web/reports/server/telegram.txt'
 const tradeErrLog = '/var/www/robot/web/reports/server/trade.txt'
@@ -13,23 +14,25 @@ const actions = {
     try {
       const { settings, trade_options, user, today } = payload
       //const { getters, commit } = store
-      if (!user.deriv_token || user.deriv_token === null) return
-      let rob =
-        settings.namespace === 'test'
-          ? store.getters.testRobots[user.deriv_token]
-          : store.getters.robots[user.deriv_token]
+      if (!user.deriv_token) return
+      //console.log(settings)
+      let rob = undefined;
+      if (settings.namespace === 'test') {
+        rob = store.getters.testRobots[user.deriv_token]
+      } else {
+        rob = store.getters.robots[user.deriv_token]
+      }
       if (rob === undefined) {
-        rob = new Robot({
+        rob = new SignalRobot({
           user: user,
-          trade_options: trade_options,
           settings: settings,
           today: today,
-          seconds_to_cancel: parseFloat(trade_options.seconds_to_cancel),
         })
       }
-      await rob.initTrade(trade_options, user, settings, today)
+      //console.log(user)
+      rob.initTrade(trade_options, user, settings, today)
     } catch (err) {
-      logger(`${new Date()}: ${err.message}`, tradeErrLog)
+      logger(`${new Date()}: ${err.message} at trade action in action.js`, tradeErrLog)
     }
   },
   revoke: async (store, payload) => {
@@ -45,7 +48,7 @@ const actions = {
           user: { deriv_token: deriv_token },
           settings: settings,
         }
-        rob = new Robot(params)
+        rob = new SignalRobot(params)
       } else {
         rob = await rob.connect()
       }
@@ -67,7 +70,7 @@ const actions = {
       if (payload.reached != undefined) {
         await rob.sendMail(payload.message)
         rob.close()
-        rob.threshold = payload.reached
+        rob.trade.threshold = payload.reached
         if (
           rob.settings.threshold_email === rob.user.email &&
           rob.settings.action === 'auto'
@@ -89,7 +92,7 @@ const actions = {
         }
         rob.debug(rob, `${new Date()}: threshold reached`)
       } else {
-        rob.threshold = 0
+        rob.trade.threshold = 0
         rob.trading = false
         rob = await rob.connect()
       }
@@ -107,7 +110,7 @@ const actions = {
       for (const token in robs) {
         let robot = robs[token]
         if (robot !== undefined) {
-          robot.threshold = 1
+          robot.trade.threshold = 1
           robot.trading === true ? robot.closeLater() : robot.close()
           store.commit(robot.savePath, robot)
         }
@@ -132,24 +135,28 @@ const actions = {
     try {
       const { settings, trade_options, user, today } = payload
       //const { getters, commit } = store
+     // console.log(settings)
       if (!user.deriv_token) return
       let rob =
         settings.namespace === 'test'
           ? store.getters.testRobots[user.deriv_token]
           : store.getters.robots[user.deriv_token]
       if (rob === undefined) {
-        rob = new Robot({
+        rob = new SignalRobot({
           app_id: settings.app_id,
           user: user,
-          trade_options: trade_options,
           settings: settings,
           today: today,
-          seconds_to_cancel: parseFloat(trade_options.seconds_to_cancel),
         })
-      } else {
+        await rob.setup(trade_options, user, settings, today)
+        store.commit(rob.savePath, rob)
+      } else if (!rob.connected) {
         rob = await rob.setup(trade_options, user, settings, today)
+        store.commit(rob.savePath, rob)
+      } else if (rob.settings.today !== settings.today) {
+        rob = await rob.setup(trade_options, user, settings, today)
+        store.commit(rob.savePath, rob)
       }
-      await store.commit(rob.savePath, rob)
     } catch (err) {
       logger(`${new Date()}: ${err.message}`, telegramErrLog)
     }
@@ -536,13 +543,8 @@ const actions = {
     process.env.NODE_ENV !== 'production' ? console.log(payload) : ""
   },
   async updateUserBalance(store, payload) {
-    payload.platform = 'web'
-    payload.type = 'trader'
-    // const token = getters.user.access_token;
     axios
-      .post(
-        `${store.getters.traderApiUrl}/indexes/update-user-balance`,
-        payload,
+      .post(payload.url,  payload,
         {
           headers: {
             Accept: 'application/json',

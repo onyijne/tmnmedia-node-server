@@ -560,6 +560,8 @@ class TraderRobot {
             rob.store.dispatch('updateUserBalance', {
               balance: data.authorize.balance,
               deriv_account: data.authorize.loginid,
+              url: `${this.api_url}/indexes/update-user-balance`,
+              env: rob.settings.namespace,
             })
           }
           await rob.send(rob.nData)
@@ -1109,7 +1111,7 @@ class TraderRobot {
       // app_store.dispatch("tradeAlert", "traded digits");
       if (this.settings.namespace === 'test') return
       const res = await axios.post(`${this.api_url}/trades/count-signals`, {
-        email: this.settings.email,
+        email: this.settings.threshold_email,
         env: this.settings.namespace,
       })
       const data = await res.data

@@ -4,7 +4,7 @@ var bc = require('locutus/php/bc')
 import Store from './store/trade'
 import { isEmpty, logger } from './utils/helpers'
 
-class Robot {
+class SignalRobot {
   constructor(param) {
     this.store = Store
     this.connected = false
@@ -13,16 +13,17 @@ class Robot {
     this.api_url = `${this.store.getters.apiUrl}/api2/v2`
     this.today = param.today || Date.now()
     this.next = null
+    this.settings = param.settings || {}
     this.user = param.user || {}
     if (this.settings.namespace === 'test') {
-      this.savePath = 'addTestRobot'
-      this.deletePath = 'removeTestRobot'
+      this.savePath = param.savePath || 'addTestRobot'
+      this.deletePath = param.deletePath || 'removeTestRobot'
       this.logFileTxt = '/var/www/robot/web/reports/server/trade-test.txt'
       this.logFileJson = '/var/www/robot/web/reports/server/trade-test.json'
       this.debugFile = '/var/www/robot/web/reports/server/debug-test.txt'
     } else {
-      this.savePath = 'addRobot'
-      this.deletePath = 'removeRobot'
+      this.savePath = param.savePath || 'addRobot'
+      this.deletePath = param.deletePath || 'removeRobot'
       this.logFileTxt = '/var/www/robot/web/reports/server/trade.txt'
       this.logFileJson = '/var/www/robot/web/reports/server/trade.json'
       this.debugFile = '/var/www/robot/web/reports/server/debug.txt'
@@ -37,7 +38,7 @@ class Robot {
       percent: 0,
       message: '',
     }
-    this.settings = param.settings || {}
+    
     this.trade_options = param.trade_options || {}
     this.timeoutId = null
     this.task = 'idle'
@@ -176,7 +177,7 @@ class Robot {
               data.error.code
             }: ${data.error.message} for ${id}`
             if (data.msg_type === 'forget') {
-              rob.forgetConnection()
+              //rob.forgetConnection()
             }
             if (process.env.NODE_ENV !== 'production') {
               console.log(data)
@@ -274,7 +275,7 @@ class Robot {
         case 'profit_table':
           passData.profit_table = 1
           passData.description = 0
-          passData.date_from = rob.today
+          passData.date_from = rob.settings.today
           passData.passthrough.next =
             rob.checking_profit === true ? 'end' : 'buy'
           break
@@ -345,7 +346,7 @@ class Robot {
         message: '',
       }
       const today_transactions = data.profit_table.transactions.filter(
-        (transaction) => transaction.purchase_time >= rob.today
+        (transaction) => transaction.purchase_time >= rob.settings.today
       )
       today_transactions.forEach((transaction) => {
         trade.totalBuy = bc.bcadd(transaction.buy_price, trade.totalBuy, 2)
@@ -427,6 +428,8 @@ class Robot {
             rob.store.dispatch('updateUserBalance', {
               balance: data.authorize.balance,
               deriv_account: data.authorize.loginid,
+              url: `${this.api_url}/indexes/update-user-balance`,
+              env: rob.settings.namespace,
             })
           }
           await rob.send(rob.nData)
@@ -456,7 +459,7 @@ class Robot {
           await rob.close()
           break
         case 'forget':
-          await rob.forgetConnection()
+          //await rob.forgetConnection()
           break
         case 'api_token':
           await rob.close()
@@ -525,6 +528,40 @@ class Robot {
     return
   }
 
+  async setup(trade_options, user, settings, today) {
+    this.today = today
+    this.user = user
+    this.settings = settings
+    if (!isEmpty(trade_options)) {
+      this.trade_options = {}
+      this.options = {
+        reached_monitor_sec: false,
+        sec_left_to_cancel: 0,
+        subscribe_id: null,
+        contract_id: null,
+        entry_spot: 0,
+      }
+      for (const key in trade_options) {
+        if (this.tradingOptions.includes(key)) {
+          this.trade_options[key] = trade_options[key]
+        } else {
+          this.options[key] = trade_options[key]
+        }
+      }
+      await this.getAmount()
+      this.options.mon_bf_sell_per = Number(`-${this.options.mon_bf_sell_per}`)
+      this.options.end_loss_percent = Number(
+        `-${this.options.end_loss_percent}`
+      )
+    }
+    if (this.timeoutId && !this.trading) {
+      clearInterval(this.timeoutId)
+      this.timeoutId = null
+    }    
+    this.cancelRetry = 0
+    return await this.connect()
+  }
+
   async sendMail(message, email = null) {
     const to = !email ? this.settings.email : email
     axios.post(`${this.api_url}/robot/send-message`, {
@@ -547,7 +584,7 @@ class Robot {
         }
         if (this.trade.threshold !== 0) {
           reason = `${reason} - ${this.trade.threshold} threshold reached`
-          if (this.today != today) {
+          if (this.settings.today != settings.today) {
             this.trade.threshold = 0
           }
         }
@@ -915,15 +952,15 @@ class Robot {
     try {
       // app_store.dispatch("tradeAlert", "traded digits");
       //if (this.settings.namespace === 'test') return
-      if (rob.user.email === rob.settings.threshold_email && rob.settings.action === 'auto') {
+      if (this.user.email === this.settings.threshold_email && this.settings.action === 'auto') {
         const res = await axios.post(`${this.api_url}/robot/trade-count`, {
-          email: this.settings.email,
+          email: this.settings.threshold_email,
           env: this.settings.namespace,
         })
         const data = await res.data
         this.settings = { ...this.settings, ...data.info }
         this.store.commit(this.savePath, this)
-        setTimeout(rob.checkThreshold, 50000, rob)
+        setTimeout(this.checkThreshold, 50000, this)
       }      
     } catch (error) {
       this.debug(this, error.message, error.message)
@@ -944,4 +981,4 @@ class Robot {
 
 }
 
-export default Robot
+export default SignalRobot
